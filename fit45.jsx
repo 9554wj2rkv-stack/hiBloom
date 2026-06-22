@@ -1,0 +1,1799 @@
+import { useState, useMemo, useEffect } from "react";
+
+const C = {
+  bg:"#faf6f1", bgDeep:"#f4ede4", surface:"#ffffff",
+  burgundy:"#6b1e35", burgundyDm:"#4e1626",
+  blush:"#e8c4c4", blushLight:"#f5e6e6", blushDim:"#c9a0a0",
+  gold:"#b8860b", goldLight:"#d4a843",
+  ink:"#2a1a20", inkMid:"#5c3d48",
+  muted:"#9a7a84", mutedLight:"#c4a8b0",
+  border:"#e0cdd4", borderDark:"#c4a8b0",
+  rose:"#c0566e", sage:"#7a9e7e",
+};
+
+/* ── SVG Muscle Diagrams ── */
+
+/* ── Data ── */
+const strengthExercises = [
+  {name:"Goblet Squat",      warmup:"12 reps light",      working:"8–10 to near-failure", rest:"90", cue:"Chest tall, elbows inside knees. Drive through heels."},
+  {name:"Glute Bridge",      warmup:"15 reps bodyweight", working:"10–12 weighted",       rest:"60", cue:"Full hip extension. Squeeze 2 seconds at the top."},
+  {name:"Dumbbell Row",      warmup:"10 reps light",      working:"8–10 to near-failure", rest:"60", cue:"Pull elbow to hip. 3-count descent. Control over weight."},
+  {name:"Chest Press",       warmup:"12 reps light",      working:"8–10 to near-failure", rest:"60", cue:"Lower slowly 3 counts. Press with power. Ribs anchored."},
+  {name:"Shoulder Press",    warmup:"10 reps light",      working:"8–10 to near-failure", rest:"60", cue:"Brace core before every rep. No lumbar arch."},
+  {name:"Romanian Deadlift", warmup:"10 reps light",      working:"8–10 to near-failure", rest:"90", cue:"Hinge from hips. Feel the hamstring load. Bar stays close."},
+  {name:"Step-Ups",          warmup:"8/leg bodyweight",   working:"10–12/leg to fatigue", rest:"60", cue:"Drive through the front heel. Full extension at top."},
+  {name:"Plank",             warmup:"20s easy",           working:"30–45s max effort",    rest:"45", cue:"Ribs to hips. Steady breath. Squeeze glutes throughout."},
+];
+
+const cardioProtocols = [
+  {name:"Incline Treadmill", icon:"🏔️", tag:"Post-Strength", duration:"10–15 min", protocol:"8–12% incline · moderate pace", why:"After lifting, your body is primed to oxidise fat. Incline walking keeps cortisol low — unlike running — while driving body composition change.", best:"After every strength session"},
+  {name:"Rowing",            icon:"🚣‍♀️", tag:"Warm-Up or Rest", duration:"10–30 min", protocol:"Damper 4–5 · 18–22 strokes per minute", why:"Full body, low joint impact. The rhythmic nature keeps cortisol low and calms the nervous system.", best:"Warm-up before strength or gentle rest day movement"},
+  {name:"Stairmaster",       icon:"🪜", tag:"Glute Finisher", duration:"10–15 min", protocol:"Moderate pace · full foot on each step", why:"Targeted glute and leg finisher. Keeps heart rate in the fat-burning zone while loading the muscles that matter most.", best:"After strength sessions, especially lower body days"},
+  {name:"Walking",           icon:"🚶‍♀️", tag:"Active Recovery", duration:"30–45 min", protocol:"Easy conversational pace · outside or treadmill", why:"Walking regulates cortisol, supports insulin sensitivity, improves mood. Outside or gym — both equally valid.", best:"Recovery days, high-stress days, any day you need to move gently"},
+];
+
+/* ── Focus Blocks — modular, combinable ── */
+const focusOptions = [
+  {id:"legs",      label:"Legs",      color:C.burgundy, icon:"🦵"},
+  {id:"glutes",    label:"Glutes",    color:"#9b2d50",  icon:"🍑"},
+  {id:"back",      label:"Back",      color:"#7a4a5a",  icon:"💪"},
+  {id:"arms",      label:"Arms",      color:"#8a6f42",  icon:"💪"},
+  {id:"shoulders", label:"Shoulders", color:"#6b4c5e",  icon:"🔥"},
+  {id:"chest",     label:"Chest",     color:"#7a3f53",  icon:"🤍"},
+  {id:"core",      label:"Core",      color:C.sage,     icon:"🧱"},
+  {id:"cardio",    label:"Cardio",    color:C.gold,     icon:"🏃‍♀️"},
+  {id:"mobility",  label:"Mobility",  color:"#5a7a5e",  icon:"🧘‍♀️"},
+  {id:"fullbody",  label:"Full Body", color:C.gold,     icon:"⭐"},
+];
+
+const focusExercises = {
+  legs:[
+    {name:"Leg Press",            alt:"Goblet Squat",          sets:"1 warm-up + 2 working", reps:"10–12",  rest:"90s", cue:"Full range. Drive through heels. Control the descent."},
+    {name:"Lying Leg Curl",       alt:"Romanian Deadlift",     sets:"1 warm-up + 2 working", reps:"10–12",  rest:"90s", cue:"3-count lowering. Squeeze at the top."},
+    {name:"Leg Extension",        alt:"Step-Ups",              sets:"2 working",             reps:"12–15",  rest:"60s", cue:"Full range. Do not hyperextend. Squeeze at the top."},
+    {name:"Calf Raise Machine",   alt:"Bodyweight calf raise", sets:"2 working",             reps:"15–20",  rest:"45s", cue:"Full range — heel below platform. Slow and deliberate."},
+  ],
+  glutes:[
+    {name:"Hip Thrust Machine",   alt:"Glute Bridge",          sets:"1 warm-up + 2 working", reps:"12–15",  rest:"60s", cue:"Full extension. Pause and squeeze 2 seconds every rep."},
+    {name:"Cable Kickback",       alt:"Donkey kick",           sets:"2 working",             reps:"15/side",rest:"45s", cue:"Control the movement. Squeeze the glute at the top."},
+    {name:"Sumo Squat",           alt:"Resistance band squat", sets:"2 working",             reps:"12–15",  rest:"60s", cue:"Wide stance, toes out. Drive knees out through the movement."},
+  ],
+  back:[
+    {name:"Lat Pulldown",         alt:"Dumbbell Row",          sets:"1 warm-up + 2 working", reps:"10–12",  rest:"60s", cue:"Pull to upper chest. Elbows drive down and back."},
+    {name:"Seated Cable Row",     alt:"Dumbbell Row",          sets:"1 warm-up + 2 working", reps:"10–12",  rest:"60s", cue:"Sit tall. Pull elbows to hips. Squeeze the back."},
+    {name:"Face Pull",            alt:"Band pull-apart",       sets:"2 working",             reps:"15",     rest:"45s", cue:"Elbows high. Pull to forehead. Squeeze rear delts."},
+  ],
+  arms:[
+    {name:"Cable Bicep Curl",     alt:"Dumbbell Curl",         sets:"2 working",             reps:"12–15",  rest:"45s", cue:"Slow curl. Squeeze at top. Lower fully — do not swing."},
+    {name:"Tricep Pushdown",      alt:"Overhead DB Extension", sets:"2 working",             reps:"12–15",  rest:"45s", cue:"Elbows close to sides. Full extension at bottom."},
+    {name:"Hammer Curl",          alt:"Neutral dumbbell curl", sets:"2 working",             reps:"12",     rest:"45s", cue:"Neutral grip. Controlled through full range."},
+  ],
+  shoulders:[
+    {name:"Shoulder Press Machine",alt:"Dumbbell Shoulder Press",sets:"1 warm-up + 2 working",reps:"10–12",rest:"60s", cue:"Brace core. No lumbar arch. Full extension overhead."},
+    {name:"Lateral Raise",        alt:"Cable lateral raise",   sets:"2 working",             reps:"12–15",  rest:"45s", cue:"Lead with elbows. Stop at shoulder height. Control down."},
+    {name:"Rear Delt Fly",        alt:"Face pull",             sets:"2 working",             reps:"15",     rest:"45s", cue:"Slight forward lean. Lead with elbows. Squeeze at top."},
+  ],
+  chest:[
+    {name:"Chest Press Machine",  alt:"Dumbbell Chest Press",  sets:"1 warm-up + 2 working", reps:"10–12",  rest:"60s", cue:"Lower slowly 3 counts. Press with power. Ribs anchored."},
+    {name:"Pec Deck",             alt:"Dumbbell fly",          sets:"2 working",             reps:"12–15",  rest:"60s", cue:"Slight bend in elbows. Feel the stretch. Squeeze at top."},
+  ],
+  core:[
+    {name:"Plank",                alt:"Dead Bug",              sets:"3 working",             reps:"30–45s", rest:"45s", cue:"Ribs to hips. Glutes squeezed. Breathe steadily."},
+    {name:"Cable Crunch",         alt:"Crunch",                sets:"2 working",             reps:"15",     rest:"45s", cue:"Round the spine. Do not pull with the arms."},
+    {name:"Pallof Press",         alt:"Band anti-rotation",    sets:"2 working",             reps:"12/side",rest:"45s", cue:"Resist rotation. Core stays braced throughout."},
+  ],
+  cardio:[
+    {name:"Incline Treadmill",    alt:"Stairmaster",           sets:"1 session",             reps:"10–15 min",rest:"—", cue:"8–12% incline. Moderate pace. Conversational effort."},
+    {name:"Rowing Machine",       alt:"Bike",                  sets:"1 session",             reps:"15–20 min",rest:"—", cue:"Steady rhythm. 18–22 strokes per minute. Damper 4–5."},
+  ],
+  mobility:[
+    {name:"Hip flexor stretch",   alt:"Kneeling lunge stretch",sets:"—",                    reps:"60s each", rest:"—", cue:"Posterior pelvic tilt. Feel the front of the hip."},
+    {name:"Thread the needle",    alt:"Thoracic rotation",     sets:"—",                    reps:"60s each", rest:"—", cue:"Slow, controlled rotation. Follow the hand with your eyes."},
+    {name:"Pigeon pose",          alt:"Figure 4 stretch",      sets:"—",                    reps:"90s each", rest:"—", cue:"Relax into it. Breathe. Do not force."},
+    {name:"Child's pose",         alt:"Extended child's pose", sets:"—",                    reps:"60s",      rest:"—", cue:"Arms extended. Breathe into the back body."},
+  ],
+  fullbody:[
+    {name:"Leg Press",            alt:"Goblet Squat",          sets:"1 warm-up + 2 working", reps:"10–12",  rest:"90s", cue:"Full range. Drive through heels."},
+    {name:"Lat Pulldown",         alt:"Dumbbell Row",          sets:"1 warm-up + 2 working", reps:"10–12",  rest:"60s", cue:"Elbows drive down and back. Squeeze the back."},
+    {name:"Chest Press Machine",  alt:"Dumbbell Press",        sets:"1 warm-up + 2 working", reps:"10–12",  rest:"60s", cue:"Lower slowly. Press with power."},
+    {name:"Shoulder Press Machine",alt:"Dumbbell Press",       sets:"1 warm-up + 2 working", reps:"10–12",  rest:"60s", cue:"Core braced. Full extension."},
+    {name:"Hip Thrust Machine",   alt:"Glute Bridge",          sets:"2 working",             reps:"12–15",  rest:"60s", cue:"Full extension. Squeeze 2 seconds at top."},
+    {name:"Plank",                alt:"Dead Bug",              sets:"2 working",             reps:"30–45s", rest:"45s", cue:"Ribs to hips. Breathe steadily."},
+  ],
+};
+
+const focusWarmup = {
+  legs:     [{name:"Treadmill walk",detail:"5 min · flat"},{name:"Bodyweight squat",detail:"15 reps · slow"},{name:"Hip circle",detail:"10 each side"}],
+  glutes:   [{name:"Glute bridge",detail:"15 reps · bodyweight · activate"},{name:"Clamshell",detail:"15 each side · resistance band"},{name:"Hip circle",detail:"10 each direction"}],
+  back:     [{name:"Rowing machine",detail:"5 min · easy pace"},{name:"Band pull-apart",detail:"15 reps · warm the shoulder"},{name:"Cat-cow",detail:"10 reps"}],
+  arms:     [{name:"Arm circle",detail:"10 each direction"},{name:"Band pull-apart",detail:"15 reps"},{name:"Light dumbbell curl",detail:"15 reps · very light"}],
+  shoulders:[{name:"Arm circle",detail:"10 each direction"},{name:"Band pull-apart",detail:"15 reps"},{name:"Light lateral raise",detail:"12 reps · very light"}],
+  chest:    [{name:"Arm circle",detail:"10 each direction"},{name:"Light chest press",detail:"15 reps · warm the joint"},{name:"Band pull-apart",detail:"15 reps"}],
+  core:     [{name:"Cat-cow",detail:"10 reps"},{name:"Dead bug",detail:"8 each side · slow"},{name:"Glute bridge",detail:"12 reps · activate"}],
+  cardio:   [{name:"Easy walk or row",detail:"5 min · very easy to prime the system"}],
+  mobility: [{name:"Deep breathing",detail:"5 slow breaths"},{name:"Gentle neck rolls",detail:"5 each direction"},{name:"Cat-cow",detail:"8 reps"}],
+  fullbody: [{name:"Rowing machine",detail:"5 min · easy"},{name:"Bodyweight squat",detail:"12 reps"},{name:"Arm circle + hip circle",detail:"10 each"}],
+};
+
+const focusMobility = {
+  legs:     [{name:"Hip flexor stretch",detail:"60s each"},{name:"Hamstring stretch",detail:"60s each"},{name:"Pigeon pose",detail:"90s each"},{name:"Calf stretch",detail:"45s each"}],
+  glutes:   [{name:"Pigeon pose",detail:"90s each"},{name:"Figure 4 stretch",detail:"60s each"},{name:"Hip flexor stretch",detail:"60s each"}],
+  back:     [{name:"Thread the needle",detail:"60s each"},{name:"Child's pose",detail:"60s"},{name:"Cat-cow",detail:"10 reps slow"}],
+  arms:     [{name:"Tricep overhead stretch",detail:"45s each"},{name:"Cross-body shoulder stretch",detail:"45s each"},{name:"Wrist circles",detail:"10 each direction"}],
+  shoulders:[{name:"Cross-body shoulder stretch",detail:"45s each"},{name:"Chest doorway stretch",detail:"60s"},{name:"Thread the needle",detail:"60s each"}],
+  chest:    [{name:"Chest doorway stretch",detail:"60s"},{name:"Thread the needle",detail:"60s each"},{name:"Child's pose",detail:"60s"}],
+  core:     [{name:"Child's pose",detail:"60s"},{name:"Supine twist",detail:"60s each"},{name:"Cat-cow",detail:"10 reps slow"}],
+  cardio:   [{name:"Full body stretch",detail:"5–10 min · legs, hips, calves"}],
+  mobility: [],
+  fullbody: [{name:"Full body stretch sequence",detail:"10 min · hip flexors, hamstrings, chest, shoulders"},{name:"Legs up the wall",detail:"3 min · recovery"}],
+};
+
+const buildSession = (focusIds) => {
+  const exercises = focusIds.flatMap(id => focusExercises[id]||[]);
+  const warmup = focusIds.length>0 ? (focusWarmup[focusIds[0]]||[]) : [];
+  const seen = new Set();
+  const mobility = focusIds.flatMap(id=>(focusMobility[id]||[])).filter(m=>{if(seen.has(m.name))return false;seen.add(m.name);return true;});
+  const hasCardio = focusIds.includes("cardio");
+  const finisher = !hasCardio && focusIds.some(id=>["legs","glutes","fullbody","back","chest","shoulders"].includes(id))
+    ? {name:"Incline Treadmill or Stairmaster", detail:"10–15 min · moderate pace · post-lift fat oxidation"}
+    : null;
+  const label = focusIds.map(id=>focusOptions.find(f=>f.id===id)?.label||id).join(" + ");
+  const color = focusOptions.find(f=>f.id===focusIds[0])?.color || C.burgundy;
+  return {label, color, exercises, warmup, mobility, finisher};
+};
+
+/* ── Supplement Library ── */
+const SUPP_STORAGE = "fit45_v4_supps";
+const SUPP_MY_LIST = "fit45_v4_mylist";
+const suppLibrary = [
+  {id:"creatine", name:"Creatine Monohydrate",    cat:"Foundations",              timing:"morning",dose:"3–5g",              note:"With breakfast or post-workout",         tier:"Essential",          col:C.gold,     why:"The most researched supplement in existence. Preserves muscle, supports cognition and bone density — uniquely valuable after 40."},
+  {id:"protein",  name:"Protein — Whey or Plant", cat:"Foundations",              timing:"morning",dose:"25–40g",            note:"Within 2 hours post-training",           tier:"Essential",          col:C.gold,     why:"After 45, anabolic resistance increases. You need more protein per meal to trigger muscle synthesis. Aim 1.6–2g per kg bodyweight daily."},
+  {id:"vitd3",    name:"Vitamin D3 + K2",          cat:"Foundations",              timing:"morning",dose:"2–5k IU · 100mcg",  note:"With your fattiest meal",                tier:"Essential",          col:C.gold,     why:"Critical for bone density, immune regulation, and hormonal health. K2 directs calcium to bone, not arteries."},
+  {id:"omega3",   name:"Omega-3 EPA / DHA",        cat:"Foundations",              timing:"morning",dose:"2–3g combined",    note:"With a meal",                            tier:"Essential",          col:C.gold,     why:"Reduces systemic inflammation, supports joint health, cardiovascular function, and cognitive health."},
+  {id:"vitc",     name:"Vitamin C",                cat:"Foundations",              timing:"morning",dose:"500–1,000mg",      note:"With food",                              tier:"Essential",          col:C.gold,     why:"Required co-factor for collagen synthesis. Supports immune function, adrenal health, and iron absorption."},
+  {id:"vitb",     name:"Vitamin B Complex",         cat:"Foundations",              timing:"morning",dose:"1 capsule",        note:"With breakfast",                         tier:"Essential",          col:C.gold,     why:"Critical for nervous system function, energy metabolism, and neurotransmitter production — serotonin and dopamine."},
+  {id:"vitb12",   name:"Vitamin B12",               cat:"Foundations",              timing:"morning",dose:"500–1,000mcg",    note:"Sublingual or with B complex",           tier:"Essential",          col:C.gold,     why:"B12 deficiency causes fatigue, brain fog, and mood disturbance — all overlapping with perimenopause symptoms."},
+  {id:"vita",     name:"Vitamin A",                 cat:"Foundations",              timing:"morning",dose:"700–900mcg RAE",  note:"With a meal containing fat",             tier:"Supportive",         col:C.blushDim, why:"Supports immune function, skin health, and hormonal signalling. Estrogen decline affects skin integrity."},
+  {id:"vite",     name:"Vitamin E",                 cat:"Foundations",              timing:"morning",dose:"100–200 IU",      note:"With a meal containing fat",             tier:"Supportive",         col:C.blushDim, why:"Antioxidant support. Some evidence for reducing hot flash severity in perimenopause."},
+  {id:"magnesium",name:"Magnesium Glycinate",       cat:"Minerals",                 timing:"evening",dose:"300–400mg",       note:"1 hour before sleep",                    tier:"Highly Recommended", col:C.rose,     why:"Supports sleep quality, muscle recovery, insulin sensitivity, and mood. The nervous system becomes hyperreactive when estrogen drops — magnesium buffers this."},
+  {id:"zinc",     name:"Zinc",                      cat:"Minerals",                 timing:"evening",dose:"15–30mg",         note:"Evening, away from iron",                tier:"Highly Recommended", col:C.rose,     why:"Essential for hormone production, immune function, and thyroid health. Supports testosterone — yes, women need it too."},
+  {id:"iron",     name:"Iron",                      cat:"Minerals",                 timing:"morning",dose:"As directed",     note:"With vitamin C, away from calcium",      tier:"If needed",          col:C.rose,     why:"If you are still cycling, iron loss matters. Low iron mimics menopause symptoms. Test before supplementing."},
+  {id:"calcium",  name:"Calcium",                   cat:"Minerals",                 timing:"morning",dose:"500mg",           note:"Split doses, not with iron or zinc",     tier:"Supportive",         col:C.blushDim, why:"Works with D3 and K2 for bone density. Food sources first — supplement to close gaps only."},
+  {id:"selenium", name:"Selenium",                  cat:"Minerals",                 timing:"morning",dose:"55–200mcg",       note:"With food",                              tier:"Supportive",         col:C.blushDim, why:"Critical for thyroid function — thyroid disorders become more common in perimenopause."},
+  {id:"electro",  name:"Electrolyte Blend",         cat:"Electrolytes",             timing:"morning",dose:"1 serving",       note:"With water, especially around training", tier:"Highly Recommended", col:C.rose,     why:"Hormonal fluctuation affects electrolyte balance. Sodium, potassium, and magnesium losses increase with perimenopause."},
+  {id:"ashwa",    name:"Ashwagandha KSM-66",         cat:"Hormonal & Nervous System",timing:"evening",dose:"300–600mg",      note:"Evening with food",                      tier:"Highly Recommended", col:C.rose,     why:"Clinically shown to reduce cortisol, support thyroid, improve sleep, and modestly raise testosterone post-menopause."},
+  {id:"maca",     name:"Maca Root",                  cat:"Hormonal & Nervous System",timing:"morning",dose:"1.5–3g",         note:"With food",                              tier:"Supportive",         col:C.blushDim, why:"Evidence for reducing hot flashes, improving mood, libido, and energy in perimenopausal women. Takes 4–6 weeks."},
+  {id:"epo",      name:"Evening Primrose Oil",        cat:"Hormonal & Nervous System",timing:"evening",dose:"500–1,000mg",    note:"With food",                              tier:"Supportive",         col:C.blushDim, why:"GLA fatty acid that supports hormonal balance. Evidence for reducing breast tenderness, hot flashes, and skin dryness."},
+  {id:"probio",   name:"Probiotic",                  cat:"Gut & Liver",              timing:"morning",dose:"10–50 billion CFU",note:"Consistent time daily",                 tier:"Highly Recommended", col:C.rose,     why:"Estrogen is metabolised through the gut. A disrupted microbiome worsens hormonal symptoms, inflammation, and mood."},
+  {id:"liver",    name:"Liver Support — Milk Thistle",cat:"Gut & Liver",             timing:"evening",dose:"As directed",     note:"Evening with food",                      tier:"Supportive",         col:C.blushDim, why:"The liver processes hormones. Supporting detoxification helps clear metabolised hormones cleanly."},
+  {id:"collagen", name:"Collagen Peptides",           cat:"Beauty & Structure",       timing:"morning",dose:"10–15g",         note:"Always with vitamin C",                  tier:"Highly Recommended", col:C.rose,     why:"Estrogen supports collagen synthesis — as it declines, joints and skin are affected. Vitamin C is a required co-factor."},
+  {id:"biotin",   name:"Biotin",                      cat:"Beauty & Structure",       timing:"morning",dose:"2.5–5mg",        note:"With food",                              tier:"Supportive",         col:C.blushDim, why:"Supports hair and nail strength — both commonly affected by hormonal changes in perimenopause."},
+];
+const suppCategories = ["Foundations","Minerals","Electrolytes","Hormonal & Nervous System","Gut & Liver","Beauty & Structure"];
+const loadMyList = () => { try{return JSON.parse(localStorage.getItem(SUPP_MY_LIST)||"null");}catch{return null;} };
+
+/* ── Cycle Data ── */
+const CK = "fit45_v4_cycle";
+const loadCycle = () => { try{return JSON.parse(localStorage.getItem(CK)||"null");}catch{return null;} };
+const saveCycleStore = d => { try{localStorage.setItem(CK,JSON.stringify(d));}catch{} };
+const phaseInfo = {
+  menstrual:  {name:"Menstrual",  days:"Day 1–5",            color:C.rose,    bg:"#fdf0f3", summary:"Estrogen and progesterone are at their lowest. Your body is working hard even when it doesn't feel like it.", training:"Gentle movement — walking, easy rowing, light stretching. If you feel strong on day 3–4, a lighter session is fine.", nutrition:"Iron-rich foods with vitamin C. Anti-inflammatory foods: oily fish, berries, turmeric. Stay well hydrated.", supplements:"Iron if you supplement. Magnesium for cramping. Omega-3 for inflammation. B complex for energy.", mindset:"Your body is not underperforming. It is doing something complex and demanding. Rest without guilt."},
+  follicular: {name:"Follicular", days:"Day 6–13",           color:C.gold,    bg:"#fdf8ee", summary:"Estrogen is rising. Energy, mood, and motivation begin to lift. Strength tends to peak here.", training:"Your best training window. Push your working sets. Increase weight if you have been consistent.", nutrition:"Your metabolism is efficient now. Complex carbohydrates around training, consistent protein. Do not under-eat.", supplements:"Creatine, protein, and vitamin D are your priorities. Your body is in a building state.", mindset:"Lean into this energy. Use it. The strong days exist so you can do the work the harder days make difficult."},
+  ovulation:  {name:"Ovulation",  days:"Day 14–16 (estimated)",color:C.burgundy,bg:"#fdf0f3", summary:"Estrogen peaks. You may feel at your most capable. However, ligament laxity is highest — joints are more vulnerable.", training:"Train hard but train smart. Peak performance window — use it. Pay close attention to form. Warm up thoroughly.", nutrition:"Energy demands are higher. Do not restrict. Zinc-rich foods support hormonal health.", supplements:"Zinc is particularly relevant now. Hydration is more important than usual.", mindset:"You are strong. Use this window with intention — and respect your joints. Power and precision together."},
+  luteal:     {name:"Luteal",     days:"Day 17–end (estimated)",color:C.sage,   bg:"#f0f5f0", summary:"Progesterone rises, estrogen falls. Energy may dip, inflammation rises, sleep can be disrupted.", training:"Reduce intensity in the second half. Moderate weights, fewer sets, longer rest. Walking and rowing are excellent.", nutrition:"Cravings increase — this is physiological. Your body needs more calories. Magnesium-rich foods reduce symptoms.", supplements:"Magnesium glycinate is essential. Ashwagandha helps manage cortisol. B6 supports mood.", mindset:"If you feel harder on yourself in this phase, know that it is hormonal. You are not falling apart. It passes."},
+};
+const getPhase = cd => {
+  if (!cd||!cd.lastPeriodStart) return null;
+  const parts=cd.lastPeriodStart.split("-");
+  const start=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]));
+  const today=new Date(); today.setHours(0,0,0,0);
+  const day=Math.floor((today-start)/(1000*60*60*24))+1, len=cd.avgCycleLength||28;
+  if (day<=5) return {phase:"menstrual",day};
+  if (day<=13) return {phase:"follicular",day};
+  if (day<=16) return {phase:"ovulation",day};
+  return {phase:"luteal",day};
+};
+const rebuildFromLog = log => {
+  const sorted=[...log].sort((a,b)=>a.date.localeCompare(b.date));
+  const starts=sorted.filter(e=>e.type==="period").map(e=>e.date);
+  const lengths=[];
+  for(let i=1;i<starts.length;i++){
+    const pa=starts[i-1].split("-"),pb=starts[i].split("-");
+    const da=new Date(parseInt(pa[0]),parseInt(pa[1])-1,parseInt(pa[2]));
+    const db=new Date(parseInt(pb[0]),parseInt(pb[1])-1,parseInt(pb[2]));
+    const l=Math.floor((db-da)/(1000*60*60*24));
+    if(l>14&&l<100)lengths.push(l);
+  }
+  return {periodLog:sorted,cycleHistory:lengths,avgCycleLength:lengths.length?Math.round(lengths.reduce((a,b)=>a+b,0)/lengths.length):null,lastPeriodStart:starts[starts.length-1]||null,lastUpdated:new Date().toISOString().slice(0,10)};
+};
+
+/* ── Storage ── */
+const SK="fit45_v4_logs", PK="fit45_v4_pulse", PLAN_KEY="fit45_v4_plan", NK="hibloom_name";
+const loadName = () => { try{return localStorage.getItem(NK)||null;}catch{return null;} };
+const dayKey = () => new Date().toISOString().slice(0,10);
+const loadLogs  = () => { try{return JSON.parse(localStorage.getItem(SK)||"[]");}catch{return [];} };
+const loadPulse = () => { try{const s=JSON.parse(localStorage.getItem(PK)||"{}");return s[dayKey()]||null;}catch{return null;} };
+
+/* ── Pulse card logic ── */
+function getCard(a) {
+  const low=a.energy==="low",high=a.energy==="high",strong=a.body==="strong";
+  const stressed=a.mood==="anxious"||a.mood==="irritable",foggy=a.mood==="foggy";
+  const achy=a.body==="achy"||a.body==="bloated",poorSleep=a.sleep==="poor",bleeding=a.bleeding==="yes";
+  if(bleeding)return{training:"Honour your body today. Gentle walking or easy rowing. This is not the week to push intensity.",nutrition:"Iron-rich foods with vitamin C. Extra hydration today.",supplement:"Iron if you supplement. Magnesium for cramping. Omega-3 reduces inflammation.",mindset:"Your body is doing something remarkable, even when it does not feel that way."};
+  if(low&&poorSleep&&achy)return{training:"Rest or gentle rowing today. Your nervous system needs recovery more than it needs a workout.",nutrition:"Warm, easy-to-digest food. Extra protein. Reduce caffeine after midday.",supplement:"Magnesium glycinate tonight. B complex this morning.",mindset:"Rest is not falling behind. It is how your body gets stronger."};
+  if(low&&stressed)return{training:"A walk outside or 15 minutes rowing. Movement that calms, not pushes.",nutrition:"Do not skip meals. Protein and healthy fats at every meal.",supplement:"Ashwagandha this evening. B complex this morning. Magnesium before bed.",mindset:"Your body is not failing you. It is managing something significant."};
+  if(foggy)return{training:"Light to moderate strength session is fine — movement genuinely helps brain fog. Keep it under 40 minutes.",nutrition:"Start with a high-protein breakfast and drink water before anything else.",supplement:"B complex and omega-3 support cognitive clarity today.",mindset:"Brain fog is physiological, not a reflection of who you are. It lifts."};
+  if(high&&strong)return{training:"This is a strong day. Use it. Full strength session — push your working sets close to failure.",nutrition:"Fuel well. A pre-workout meal with carbs and protein. Refuel within 2 hours after.",supplement:"Creatine and protein are your priorities today.",mindset:"You are strong. This is what all the rest days were for. Own this session."};
+  return{training:"A solid moderate training day. Warm up well, hit your working sets, and finish with 10–15 minutes incline treadmill.",nutrition:"Consistent protein throughout the day. Do not skip meals. Hydrate well.",supplement:"Stay consistent with your morning stack. Consistency is what makes supplements work.",mindset:"You showed up. That is the whole thing. Keep going."};
+}
+
+/* ── Toast ── */
+function Toast({msg,onDone}){
+  useEffect(()=>{const t=setTimeout(onDone,2400);return()=>clearTimeout(t);},[onDone]);
+  return <div style={{position:"fixed",bottom:32,left:"50%",transform:"translateX(-50%)",background:C.burgundy,color:"#fff",padding:"12px 28px",fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:14,boxShadow:"0 6px 32px rgba(107,30,53,0.28)",zIndex:999,whiteSpace:"nowrap",borderRadius:2,animation:"toastIn .3s ease"}}>{msg}</div>;
+}
+
+/* ── Morning Pulse ── */
+/* ── Welcome Screen ── */
+function Welcome({onComplete}){
+  const [name,setName]=useState("");
+  const [active,setActive]=useState(false);
+  const submit=()=>{
+    const n=name.trim();
+    if(!n)return;
+    try{localStorage.setItem(NK,n);}catch{}
+    onComplete(n);
+  };
+  return(
+    <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${C.burgundy} 0%,#8b2a44 60%,#a0364e 100%)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 32px",textAlign:"center"}}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap');`}</style>
+
+      {/* Logo */}
+      <div style={{marginBottom:48}}>
+        <div style={{display:"flex",alignItems:"flex-end",justifyContent:"center",gap:0,marginBottom:10}}>
+          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:46,fontWeight:300,color:"rgba(255,255,255,0.45)",letterSpacing:"-1.5px",lineHeight:1}}>hi</span>
+          <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:46,fontWeight:500,color:"#fff",letterSpacing:"-1.5px",lineHeight:1}}>Bloom</span>
+          <div style={{width:8,height:8,borderRadius:"50%",background:"#c0566e",marginBottom:7,marginLeft:3,flexShrink:0}}/>
+        </div>
+        <div style={{height:"0.5px",background:"rgba(255,255,255,0.15)",marginBottom:10}}/>
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:3.5,textTransform:"uppercase",color:"rgba(255,255,255,0.35)"}}>Embrace Your New Season</p>
+      </div>
+
+      {/* Welcome message */}
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:22,fontWeight:400,color:"rgba(255,255,255,0.88)",marginBottom:10,lineHeight:1.4}}>Welcome to hiBloom.</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:15,color:"rgba(255,255,255,0.42)",marginBottom:52,lineHeight:1.8,maxWidth:320}}>Built for you. Every morning, every session, every season of change.</p>
+
+      {/* Name input */}
+      <div style={{width:"100%",maxWidth:340,marginBottom:16}}>
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:2.5,textTransform:"uppercase",color:"rgba(255,255,255,0.35)",marginBottom:14}}>What shall we call you?</p>
+        <input
+          type="text"
+          value={name}
+          onChange={e=>setName(e.target.value)}
+          onKeyDown={e=>e.key==="Enter"&&submit()}
+          onFocus={()=>setActive(true)}
+          onBlur={()=>setActive(false)}
+          placeholder="Your first name"
+          style={{
+            width:"100%",padding:"16px 20px",
+            background:"rgba(255,255,255,0.06)",
+            border:`1px solid ${active?"rgba(255,255,255,0.35)":"rgba(255,255,255,0.12)"}`,
+            borderRadius:4,
+            color:"#fff",fontSize:18,
+            fontFamily:"'DM Sans',sans-serif",fontWeight:300,
+            textAlign:"center",letterSpacing:"0.5px",
+            outline:"none",transition:"border-color .2s",
+          }}
+        />
+      </div>
+
+      <button
+        onClick={submit}
+        disabled={!name.trim()}
+        style={{
+          width:"100%",maxWidth:340,padding:"16px",
+          background:name.trim()?"#6b1e35":"rgba(255,255,255,0.06)",
+          color:name.trim()?"#fff":"rgba(255,255,255,0.25)",
+          border:"none",borderRadius:4,
+          fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:500,
+          letterSpacing:3,textTransform:"uppercase",
+          cursor:name.trim()?"pointer":"not-allowed",
+          transition:"all .25s",
+          boxShadow:name.trim()?"0 6px 24px rgba(107,30,53,0.35)":"none",
+        }}>
+        Begin
+      </button>
+
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:"rgba(255,255,255,0.18)",marginTop:24,lineHeight:1.7,maxWidth:280}}>Your name is stored only on your device. Private, always.</p>
+    </div>
+  );
+}
+
+/* ── Morning Pulse ── */
+function MorningPulse({onComplete,existing}){
+  const [step,setStep]=useState(0);
+  const [ans,setAns]=useState(existing||{});
+  const questions=[
+    {key:"energy",q:"How is your energy this morning?",opts:[{val:"low",label:"Low",sub:"Tired, heavy"},{val:"moderate",label:"Moderate",sub:"Getting there"},{val:"high",label:"High",sub:"Ready to go"}]},
+    {key:"mood",q:"How is your mind feeling?",opts:[{val:"calm",label:"Calm",sub:"Clear and steady"},{val:"foggy",label:"Foggy",sub:"Hard to focus"},{val:"anxious",label:"Anxious",sub:"On edge"},{val:"irritable",label:"Irritable",sub:"Low tolerance"}]},
+    {key:"body",q:"How does your body feel?",opts:[{val:"strong",label:"Strong",sub:"Ready to move"},{val:"light",label:"Light",sub:"Loose and easy"},{val:"achy",label:"Achy",sub:"Sore or stiff"},{val:"bloated",label:"Bloated",sub:"Heavy or full"}]},
+    {key:"sleep",q:"How did you sleep?",opts:[{val:"good",label:"Well",sub:"Rested and restored"},{val:"okay",label:"Okay",sub:"Patchy but fine"},{val:"poor",label:"Poorly",sub:"Broken or short"}]},
+    {key:"bleeding",q:"Any bleeding or spotting today?",opts:[{val:"yes",label:"Yes",sub:""},{val:"no",label:"No",sub:""}]},
+  ];
+  const q=questions[step];
+  const pct=(step/questions.length)*100;
+  const pick=val=>{
+    const updated={...ans,[q.key]:val};
+    setAns(updated);
+    if(step<questions.length-1){setTimeout(()=>setStep(s=>s+1),260);}
+    else{try{const s=JSON.parse(localStorage.getItem(PK)||"{}");s[dayKey()]=updated;localStorage.setItem(PK,JSON.stringify(s));}catch{};onComplete(updated);}
+  };
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"32px 24px"}}>
+      <div style={{width:"100%",maxWidth:480}}>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",fontSize:14,color:C.blushDim,textAlign:"center",marginBottom:4}}>Morning Pulse</p>
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:3,textTransform:"uppercase",color:C.mutedLight,textAlign:"center",marginBottom:32}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</p>
+        <div style={{height:2,background:C.blushLight,borderRadius:2,marginBottom:40,overflow:"hidden"}}><div style={{height:"100%",background:`linear-gradient(90deg,${C.burgundy},${C.rose})`,width:`${pct}%`,transition:"width .4s ease"}}/></div>
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:26,fontWeight:700,color:C.ink,marginBottom:24,lineHeight:1.25,textAlign:"center"}}>{q.q}</p>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {q.opts.map(opt=>(
+            <button key={opt.val} onClick={()=>pick(opt.val)} style={{padding:"16px 20px",background:ans[q.key]===opt.val?"#fdf0f3":C.surface,border:`1px solid ${ans[q.key]===opt.val?C.burgundy:C.border}`,borderRadius:4,cursor:"pointer",textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center",transition:"all .18s"}}>
+              <div>
+                <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,fontWeight:700,color:C.ink,display:"block"}}>{opt.label}</span>
+                {opt.sub&&<span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted}}>{opt.sub}</span>}
+              </div>
+              <div style={{width:20,height:20,borderRadius:"50%",border:`1.5px solid ${ans[q.key]===opt.val?C.burgundy:C.border}`,background:ans[q.key]===opt.val?C.burgundy:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                {ans[q.key]===opt.val&&<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3.5 6L8 1" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+              </div>
+            </button>
+          ))}
+        </div>
+        {step>0&&<button onClick={()=>setStep(s=>s-1)} style={{marginTop:20,background:"none",border:"none",color:C.mutedLight,fontFamily:"'DM Sans',sans-serif",fontSize:12,cursor:"pointer",display:"block",margin:"20px auto 0"}}>Back</button>}
+      </div>
+    </div>
+  );
+}
+
+/* ── Today Card ── */
+function TodayCard({answers,onRetake,name,onEditName}){
+  const rec=getCard(answers);
+  const [open,setOpen]=useState(null);
+  const [editingName,setEditingName]=useState(false);
+  const [nameInput,setNameInput]=useState(name||"");
+
+  const saveName=()=>{
+    const n=nameInput.trim();
+    if(n){onEditName(n);}
+    setEditingName(false);
+  };
+
+  const getGreeting=()=>{
+    const h=new Date().getHours();
+    const t=h<12?"Good morning":h<17?"Good afternoon":"Good evening";
+    return name?`${t}, ${name}.`:t+".";
+  };
+
+  const getPowerLine=()=>{
+    const {energy,mood,body,sleep,bleeding}=answers;
+    if(bleeding==="yes") return "Your body is doing something remarkable today. Honour it.";
+    if(energy==="high"&&body==="strong") return "You are strong and ready. Make this day count.";
+    if(energy==="high") return "Your energy is with you today. Use it well.";
+    if(mood==="calm"&&sleep==="good") return "Rested and calm. A rare and valuable combination.";
+    if(mood==="calm") return "There is steadiness in you today. Trust it.";
+    if(energy==="low"&&sleep==="poor") return "You showed up anyway. That is everything.";
+    if(energy==="low") return "Low energy is not weakness. It is your body asking for care.";
+    if(mood==="anxious") return "The anxiety is real — but it is not the truth of you.";
+    if(mood==="foggy") return "Brain fog lifts. You are clearer than you feel right now.";
+    if(mood==="irritable") return "This too is hormonal. You are not your worst days.";
+    if(body==="achy") return "Be gentle with yourself today. Gentleness is strength.";
+    return "You are exactly where you need to be. Keep going.";
+  };
+
+  const cards=[
+    {key:"training",label:"Training Today",icon:"◈",color:C.burgundy,content:rec.training},
+    {key:"nutrition",label:"Nutrition Focus",icon:"◇",color:C.gold,content:rec.nutrition},
+    {key:"supplement",label:"Supplement Focus",icon:"◉",color:C.rose,content:rec.supplement},
+    {key:"mindset",label:"For You",icon:"♡",color:C.sage,content:rec.mindset},
+  ];
+
+  return(
+    <div>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:3,textTransform:"uppercase",color:C.mutedLight,marginBottom:10}}>Morning Pulse · Today</p>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:30,fontWeight:500,color:C.burgundy,marginBottom:8,lineHeight:1.1}}>{getGreeting()}</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:15,color:C.inkMid,marginBottom:10,lineHeight:1.7}}>{getPowerLine()}</p>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,marginBottom:16}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</p>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:24}}>
+        {[answers.energy+" energy",answers.mood,answers.body,answers.sleep+" sleep"].map(t=>(<span key={t} style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:C.inkMid,background:C.blushLight,padding:"4px 10px",borderRadius:20,textTransform:"capitalize"}}>{t}</span>))}
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:20}}>
+        {cards.map(card=>(
+          <div key={card.key} onClick={()=>setOpen(open===card.key?null:card.key)} style={{background:C.surface,border:`1px solid ${open===card.key?card.color:C.border}`,borderLeft:`3px solid ${card.color}`,borderRadius:4,overflow:"hidden",cursor:"pointer",transition:"border-color .2s",boxShadow:"0 1px 8px rgba(107,30,53,0.04)"}}>
+            <div style={{display:"flex",alignItems:"center",padding:"16px 18px",gap:12}}>
+              <span style={{color:card.color,fontSize:15,flexShrink:0}}>{card.icon}</span>
+              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:2,textTransform:"uppercase",color:C.muted,flex:1,fontWeight:700}}>{card.label}</span>
+              <span style={{color:C.mutedLight,fontSize:14,display:"inline-block",transition:"transform .2s",transform:open===card.key?"rotate(90deg)":"rotate(0deg)"}}>›</span>
+            </div>
+            {open===card.key&&<div style={{padding:"0 18px 18px 46px"}}><p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,lineHeight:1.9}}>{card.content}</p></div>}
+          </div>
+        ))}
+      </div>
+      <button onClick={onRetake} style={{background:"none",border:"none",color:C.mutedLight,fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer"}}>Retake Morning Pulse →</button>
+      {!editingName&&name&&(
+        <button onClick={()=>{setNameInput(name);setEditingName(true);}} style={{background:"none",border:"none",color:C.blushDim,fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer",display:"block",marginTop:8}}>Not {name}? Tap to change →</button>
+      )}
+      {editingName&&(
+        <div style={{marginTop:12,display:"flex",gap:8,alignItems:"center"}}>
+          <input
+            value={nameInput}
+            onChange={e=>setNameInput(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&saveName()}
+            autoFocus
+            style={{flex:1,padding:"8px 12px",background:C.bgDeep,border:`1px solid ${C.burgundy}`,borderRadius:3,color:C.ink,fontSize:14,fontFamily:"'DM Sans',sans-serif",outline:"none"}}
+          />
+          <button onClick={saveName} style={{padding:"8px 16px",background:C.burgundy,color:"#fff",border:"none",borderRadius:3,fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,cursor:"pointer"}}>Save</button>
+          <button onClick={()=>setEditingName(false)} style={{padding:"8px 12px",background:"none",border:`1px solid ${C.border}`,color:C.muted,borderRadius:3,fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer"}}>Cancel</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Cycle Tab ── */
+function CycleTab({pulseAnswers}){
+  const [cycleData,setCycleData]=useState(loadCycle);
+  const [showLog,setShowLog]=useState(false);
+  const [logType,setLogType]=useState("period");
+  const [expanded,setExpanded]=useState("training");
+  const [showImport,setShowImport]=useState(false);
+  const [importEntries,setImportEntries]=useState([]);
+  const [importDate,setImportDate]=useState("");
+  const [importType,setImportType]=useState("period");
+  const [editCycleLen,setEditCycleLen]=useState(false);
+  const [newCycleLen,setNewCycleLen]=useState("");
+  const [showHistory,setShowHistory]=useState(false);
+
+  const phaseResult=getPhase(cycleData);
+  const phase=phaseResult?phaseInfo[phaseResult.phase]:null;
+  const history=cycleData?.cycleHistory||[];
+  const shortest=history.length?Math.min(...history):null;
+  const longest=history.length?Math.max(...history):null;
+
+  const applyLog=log=>{const u=rebuildFromLog(log);setCycleData(u);saveCycleStore(u);};
+  const logToday=type=>{const today=dayKey(),existing=cycleData?.periodLog||[];const merged=[...existing.filter(e=>!(e.date===today&&e.type===type)),{date:today,type}].sort((a,b)=>a.date.localeCompare(b.date));applyLog(merged);setShowLog(false);};
+  const addImportEntry=()=>{if(!importDate)return;const already=importEntries.find(e=>e.date===importDate&&e.type===importType);if(!already)setImportEntries(prev=>[...prev,{date:importDate,type:importType}].sort((a,b)=>a.date.localeCompare(b.date)));setImportDate("");};
+  const commitImport=()=>{if(!importEntries.length)return;const existing=cycleData?.periodLog||[];const merged=[...existing,...importEntries].filter((e,i,arr)=>arr.findIndex(x=>x.date===e.date&&x.type===e.type)===i).sort((a,b)=>a.date.localeCompare(b.date));applyLog(merged);setImportEntries([]);setShowImport(false);};
+  const removeEntry=(date,type)=>applyLog((cycleData?.periodLog||[]).filter(e=>!(e.date===date&&e.type===type)));
+
+  const cycleContext=phaseResult&&pulseAnswers?(()=>{
+    const {energy,mood,body}=pulseAnswers,p=phaseResult.phase;
+    const low=energy==="low",achy=body==="achy"||body==="bloated",stressed=mood==="anxious"||mood==="irritable",foggy=mood==="foggy";
+    if((p==="menstrual"||p==="luteal")&&(low||achy||stressed||foggy))return "How you are feeling today makes complete sense for this phase of your cycle. This is not weakness — it is biology.";
+    if((p==="follicular"||p==="ovulation")&&energy==="high")return "Your energy today aligns with where you are in your cycle. Estrogen is rising and your body is primed. Use this window well.";
+    return "Your cycle phase and how you are feeling today are connected. The more you log, the clearer your own patterns will become.";
+  })():null;
+
+  const fmtDate=d=>new Date(d+"T00:00:00").toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});
+  const typeLabel=t=>t==="period"?"Period start":t==="end"?"Period end":"Spotting";
+  const typeColor=t=>t==="spotting"?C.blushDim:t==="end"?C.sage:C.rose;
+  const allLog=(cycleData?.periodLog||[]).slice().reverse();
+  const periodStarts=(cycleData?.periodLog||[]).filter(e=>e.type==="period");
+
+  return(
+    <div>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:26,fontWeight:500,color:C.burgundy,marginBottom:4}}>Cycle Awareness</p>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginBottom:6,lineHeight:1.8}}>Pattern recognition over time. The more you log, the more clearly your own rhythms emerge.</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:11,color:C.blushDim,marginBottom:24}}>Your data stays on your device. Private, always.</p>
+
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:C.muted,marginBottom:10}}>Log today</p>
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        {[{type:"period",label:"Period started"},{type:"spotting",label:"Spotting"},{type:"end",label:"Period ended"}].map(btn=>(
+          <button key={btn.type} onClick={()=>{setLogType(btn.type);setShowLog(true);}} style={{padding:"10px 18px",borderRadius:3,cursor:"pointer",background:C.surface,border:`1px solid ${typeColor(btn.type)}`,color:typeColor(btn.type),fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,letterSpacing:1}}>{btn.label}</button>
+        ))}
+      </div>
+      {showLog&&(
+        <div style={{background:C.blushLight,border:`1px solid ${C.blush}`,borderRadius:4,padding:"18px 20px",marginBottom:20}}>
+          <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,color:C.ink,marginBottom:14}}>Log <em>{typeLabel(logType).toLowerCase()}</em> for {new Date().toLocaleDateString("en-US",{month:"long",day:"numeric"})}?</p>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>logToday(logType)} style={{padding:"10px 20px",background:C.burgundy,color:"#fff",border:"none",borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer"}}>Confirm</button>
+            <button onClick={()=>setShowLog(false)} style={{padding:"10px 16px",background:"none",border:`1px solid ${C.border}`,color:C.muted,borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer"}}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      <div style={{marginBottom:24}}>
+        <button onClick={()=>setShowImport(!showImport)} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:3,padding:"10px 18px",color:C.inkMid,fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer",width:"100%",textAlign:"left",display:"flex",justifyContent:"space-between"}}>
+          <span>Import past period history</span>
+          <span style={{transition:"transform .2s",display:"inline-block",transform:showImport?"rotate(90deg)":"rotate(0deg)"}}>›</span>
+        </button>
+        {showImport&&(
+          <div style={{background:C.surface,border:`1px solid ${C.border}`,borderTop:"none",borderRadius:"0 0 4px 4px",padding:"20px"}}>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginBottom:6,lineHeight:1.8}}>Add past period dates. Period start dates are the most important — they calculate your personal average automatically.</p>
+            <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap",alignItems:"flex-end"}}>
+              <div style={{flex:1,minWidth:160}}>
+                <label style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:C.muted,display:"block",marginBottom:6}}>Date</label>
+                <input type="date" value={importDate} onChange={e=>setImportDate(e.target.value)} max={dayKey()} style={{width:"100%",padding:"10px 12px",background:C.bgDeep,border:`1px solid ${C.border}`,borderRadius:2,color:C.ink,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}/>
+              </div>
+              <div style={{minWidth:140}}>
+                <label style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:C.muted,display:"block",marginBottom:6}}>Type</label>
+                <select value={importType} onChange={e=>setImportType(e.target.value)} style={{width:"100%",padding:"10px 12px",background:C.bgDeep,border:`1px solid ${C.border}`,borderRadius:2,color:C.ink,fontSize:14,fontFamily:"'DM Sans',sans-serif"}}>
+                  <option value="period">Period start</option>
+                  <option value="end">Period end</option>
+                  <option value="spotting">Spotting</option>
+                </select>
+              </div>
+              <button onClick={addImportEntry} style={{padding:"10px 18px",background:C.burgundy,color:"#fff",border:"none",borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:11,cursor:"pointer"}}>Add</button>
+            </div>
+            {importEntries.length>0&&(
+              <div style={{marginBottom:16}}>
+                <div style={{display:"flex",flexDirection:"column",gap:3,maxHeight:200,overflowY:"auto",marginBottom:10}}>
+                  {importEntries.map((e,i)=>(
+                    <div key={i} style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:12,alignItems:"center",background:C.bgDeep,padding:"8px 12px",borderRadius:2}}>
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.ink}}>{fmtDate(e.date)}</span>
+                      <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:typeColor(e.type),fontWeight:600}}>{typeLabel(e.type)}</span>
+                      <button onClick={()=>setImportEntries(prev=>prev.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:C.blushDim,cursor:"pointer",fontSize:13}}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={commitImport} style={{width:"100%",padding:"12px",background:C.burgundy,color:"#fff",border:"none",borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,letterSpacing:2,textTransform:"uppercase",cursor:"pointer"}}>Save {importEntries.length} {importEntries.length===1?"entry":"entries"}</button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {phase?(
+        <div>
+          <div style={{background:phase.bg,border:`1px solid ${phase.color}`,borderLeft:`4px solid ${phase.color}`,borderRadius:4,padding:"22px 24px",marginBottom:8,boxShadow:"0 2px 12px rgba(107,30,53,0.06)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10,flexWrap:"wrap",gap:8}}>
+              <div>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:phase.color,marginBottom:4}}>Current Phase</p>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:24,fontWeight:700,color:C.ink,lineHeight:1}}>{phase.name}</p>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,marginTop:3}}>{phase.days}</p>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",color:C.muted,marginBottom:2}}>Cycle day</p>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:36,fontWeight:700,color:phase.color,lineHeight:1}}>{phaseResult.day}</p>
+              </div>
+            </div>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.inkMid,lineHeight:1.85,marginBottom:10}}>{phase.summary}</p>
+            {history.length>0&&(
+              <div style={{display:"flex",gap:20,flexWrap:"wrap",paddingTop:10,borderTop:`1px solid ${phase.color}22`}}>
+                {[["Avg cycle",`${cycleData.avgCycleLength} days`],["Shortest",`${shortest} days`],["Longest",`${longest} days`],["Cycles logged",`${periodStarts.length}`]].map(([k,v])=>(
+                  <div key={k}><p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:C.muted,marginBottom:2}}>{k}</p><p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:700,color:phase.color}}>{v}</p></div>
+                ))}
+              </div>
+            )}
+          </div>
+          {cycleContext&&(
+            <div style={{background:C.surface,border:`1px solid ${C.blush}`,borderLeft:`3px solid ${C.rose}`,borderRadius:4,padding:"16px 20px",marginBottom:8,boxShadow:"0 1px 6px rgba(107,30,53,0.04)"}}>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",color:C.rose,marginBottom:6}}>Today's Pulse + Your Cycle</p>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.inkMid,lineHeight:1.85,fontStyle:"italic"}}>{cycleContext}</p>
+            </div>
+          )}
+          <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:24}}>
+            {[{key:"training",label:"Training this phase"},{key:"nutrition",label:"Nutrition focus"},{key:"supplements",label:"Supplement priority"},{key:"mindset",label:"A note for you"}].map(item=>(
+              <div key={item.key} onClick={()=>setExpanded(expanded===item.key?null:item.key)} style={{background:C.surface,border:`1px solid ${expanded===item.key?phase.color:C.border}`,borderLeft:`3px solid ${expanded===item.key?phase.color:C.border}`,borderRadius:4,overflow:"hidden",cursor:"pointer",transition:"border-color .2s"}}>
+                <div style={{display:"flex",alignItems:"center",padding:"15px 18px",gap:12}}>
+                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:2,textTransform:"uppercase",color:expanded===item.key?phase.color:C.muted,flex:1}}>{item.label}</span>
+                  <span style={{color:C.mutedLight,fontSize:14,display:"inline-block",transition:"transform .2s",transform:expanded===item.key?"rotate(90deg)":"rotate(0deg)"}}>›</span>
+                </div>
+                {expanded===item.key&&<div style={{padding:"0 18px 18px"}}><p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,lineHeight:1.9}}>{phase[item.key]}</p></div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ):(
+        <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,padding:"28px 24px",marginBottom:24,textAlign:"center"}}>
+          <p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",fontSize:20,color:C.muted,marginBottom:8}}>Log your period start to begin.</p>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.mutedLight,lineHeight:1.7}}>Once you log your first period or import your history, hiBloom will estimate your current phase and give tailored guidance.</p>
+        </div>
+      )}
+
+      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,padding:"18px 20px",marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",color:C.muted,marginBottom:3}}>Average cycle length</p>
+            <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,color:C.ink}}>{cycleData?.avgCycleLength?`${cycleData.avgCycleLength} days — from your history`:"Not yet calculated"}</p>
+          </div>
+          <button onClick={()=>setEditCycleLen(!editCycleLen)} style={{background:"none",border:"none",color:C.mutedLight,fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:1,textTransform:"uppercase",cursor:"pointer"}}>Override</button>
+        </div>
+        {editCycleLen&&(
+          <div style={{display:"flex",gap:8,alignItems:"center",marginTop:12}}>
+            <input type="number" value={newCycleLen} onChange={e=>setNewCycleLen(e.target.value)} placeholder="e.g. 32" style={{width:100,padding:"10px 12px",background:C.bgDeep,border:`1px solid ${C.border}`,borderRadius:2,color:C.ink,fontSize:16,fontFamily:"Georgia,serif"}}/>
+            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted}}>days</span>
+            <button onClick={()=>{const l=parseInt(newCycleLen);if(l>14&&l<100){const u={...(cycleData||{}),avgCycleLength:l};setCycleData(u);saveCycleStore(u);}setEditCycleLen(false);setNewCycleLen("");}} style={{padding:"10px 16px",background:C.burgundy,color:"#fff",border:"none",borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:10,cursor:"pointer"}}>Save</button>
+          </div>
+        )}
+      </div>
+
+      {allLog.length>0&&(
+        <div>
+          <button onClick={()=>setShowHistory(!showHistory)} style={{background:"none",border:"none",color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:2,textTransform:"uppercase",cursor:"pointer",marginBottom:10,display:"flex",alignItems:"center",gap:6}}>
+            <span>{showHistory?"Hide":"Show"} full history ({allLog.length} entries)</span>
+            <span style={{transition:"transform .2s",display:"inline-block",transform:showHistory?"rotate(90deg)":"rotate(0deg)"}}>›</span>
+          </button>
+          {showHistory&&(
+            <div style={{display:"flex",flexDirection:"column",gap:3,marginBottom:20}}>
+              {allLog.map((entry,i)=>(
+                <div key={i} style={{display:"grid",gridTemplateColumns:"1fr auto auto",gap:12,alignItems:"center",background:C.surface,border:`1px solid ${C.border}`,padding:"10px 16px",borderRadius:2}}>
+                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.ink}}>{fmtDate(entry.date)}</p>
+                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:typeColor(entry.type),fontWeight:600}}>{typeLabel(entry.type)}</p>
+                  <button onClick={()=>removeEntry(entry.date,entry.type)} style={{background:"none",border:"none",color:C.blushDim,cursor:"pointer",fontSize:12}}>✕</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{background:`linear-gradient(135deg,${C.burgundy},#8b2a44)`,borderRadius:4,padding:"24px 26px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-30,right:-30,width:100,height:100,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.07)"}}/>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",fontSize:18,fontWeight:700,color:"#fff",marginBottom:10,position:"relative"}}>A note on irregular cycles</p>
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"rgba(255,255,255,0.75)",lineHeight:1.9,position:"relative"}}>In perimenopause, cycles become unpredictable. hiBloom does not expect you to fit a textbook 28-day model. The more you log, the more your own patterns emerge — and that information is uniquely yours.</p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Supplements Tab ── */
+function SupplementsTab(){
+  const [myList,setMyList]=useState(()=>loadMyList()||[]);
+  const [view,setView]=useState("ritual");
+  const [activeCategory,setActiveCategory]=useState("Foundations");
+  const [checked,setChecked]=useState(()=>{try{const s=JSON.parse(localStorage.getItem(SUPP_STORAGE)||"{}");return s[dayKey()]||{};}catch{return{};}});
+  const [expanded,setExpanded]=useState(null);
+  useEffect(()=>{try{localStorage.setItem(SUPP_MY_LIST,JSON.stringify(myList));}catch{}},[myList]);
+  useEffect(()=>{try{const s=JSON.parse(localStorage.getItem(SUPP_STORAGE)||"{}");s[dayKey()]=checked;const keys=Object.keys(s).sort().slice(-7);const p={};keys.forEach(k=>{p[k]=s[k];});localStorage.setItem(SUPP_STORAGE,JSON.stringify(p));}catch{}},[checked]);
+  const toggle=id=>setChecked(p=>({...p,[id]:!p[id]}));
+  const inMyList=id=>myList.includes(id);
+  const addToList=id=>{if(!inMyList(id))setMyList(p=>[...p,id]);};
+  const removeFromList=id=>setMyList(p=>p.filter(x=>x!==id));
+  const mySupps=suppLibrary.filter(s=>myList.includes(s.id));
+  const morning=mySupps.filter(s=>s.timing==="morning");
+  const evening=mySupps.filter(s=>s.timing==="evening");
+  const done=mySupps.filter(s=>checked[s.id]).length;
+  const total=mySupps.length;
+  const pct=total>0?Math.round((done/total)*100):0;
+  const catSupps=suppLibrary.filter(s=>s.cat===activeCategory);
+
+  const renderItem=(s,showRemove)=>{
+    const ck=!!checked[s.id],op=expanded===s.id;
+    return(
+      <div key={s.id} style={{background:ck?"#fdf8f5":C.surface,border:`1px solid ${ck?C.blush:C.border}`,borderLeft:`3px solid ${ck?C.burgundy:s.col}`,borderRadius:4,overflow:"hidden",transition:"all .25s",boxShadow:"0 1px 6px rgba(107,30,53,0.04)",marginBottom:4}}>
+        <div style={{display:"flex",alignItems:"center"}}>
+          {showRemove&&<div onClick={()=>toggle(s.id)} style={{padding:"18px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",borderRight:`1px solid ${C.border}`,flexShrink:0}}>
+            <div style={{width:24,height:24,borderRadius:"50%",border:`1.5px solid ${ck?C.burgundy:C.borderDark}`,background:ck?C.burgundy:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .22s"}}>
+              {ck&&<svg width="11" height="8" viewBox="0 0 11 8" fill="none"><path d="M1 4L4 7L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+            </div>
+          </div>}
+          <div onClick={()=>setExpanded(op?null:s.id)} style={{flex:1,padding:"14px 16px",cursor:"pointer"}}>
+            <div style={{display:"flex",alignItems:"baseline",gap:10,flexWrap:"wrap"}}>
+              <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:700,color:ck?C.mutedLight:C.ink,textDecoration:ck?"line-through":"none",textDecorationColor:C.blushDim}}>{s.name}</span>
+              <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:ck?C.mutedLight:C.burgundy,fontWeight:500}}>{s.dose}</span>
+            </div>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.mutedLight,marginTop:2,fontStyle:"italic"}}>{s.note}</p>
+          </div>
+          <div style={{display:"flex",alignItems:"center"}}>
+            <div onClick={()=>setExpanded(op?null:s.id)} style={{padding:"18px 10px",cursor:"pointer",color:C.mutedLight,fontSize:14,display:"inline-block",transition:"transform .2s",transform:op?"rotate(90deg)":"rotate(0deg)"}}>›</div>
+            {showRemove&&<div onClick={()=>removeFromList(s.id)} style={{padding:"18px 14px",cursor:"pointer",color:C.blushDim,fontSize:13}}>✕</div>}
+            {!showRemove&&<div onClick={()=>inMyList(s.id)?removeFromList(s.id):addToList(s.id)} style={{padding:"14px 16px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",borderLeft:`1px solid ${C.border}`}}>
+              <div style={{width:26,height:26,borderRadius:"50%",border:`1.5px solid ${inMyList(s.id)?C.burgundy:C.borderDark}`,background:inMyList(s.id)?C.burgundy:"transparent",display:"flex",alignItems:"center",justifyContent:"center",transition:"all .22s"}}>
+                {inMyList(s.id)?<svg width="11" height="8" viewBox="0 0 11 8" fill="none"><path d="M1 4L4 7L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>:<span style={{color:C.muted,fontSize:16,lineHeight:1}}>+</span>}
+              </div>
+            </div>}
+          </div>
+        </div>
+        {op&&<div style={{padding:"12px 16px 16px 58px",borderTop:`1px solid ${C.blushLight}`}}><span style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:1.5,textTransform:"uppercase",color:s.col,display:"block",marginBottom:5}}>{s.tier}</span><p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,lineHeight:1.9}}>{s.why}</p></div>}
+      </div>
+    );
+  };
+
+  return(
+    <div>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:26,fontWeight:500,color:C.burgundy,marginBottom:4}}>Supplements</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:11,color:C.blushDim,marginBottom:20}}>Always consult your physician before starting any protocol.</p>
+      <div style={{display:"flex",gap:4,marginBottom:28,background:C.bgDeep,padding:4,borderRadius:4}}>
+        {[["ritual","My Daily Ritual"],["library","Library"]].map(([v,label])=>(
+          <button key={v} onClick={()=>setView(v)} style={{flex:1,padding:"10px",borderRadius:3,border:"none",cursor:"pointer",fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,letterSpacing:1.5,textTransform:"uppercase",background:view===v?C.burgundy:"transparent",color:view===v?"#fff":C.muted,transition:"all .2s"}}>{label}</button>
+        ))}
+      </div>
+      {view==="ritual"&&(
+        mySupps.length===0?(
+          <div style={{textAlign:"center",padding:"48px 24px",background:C.surface,border:`1px solid ${C.border}`,borderRadius:4}}>
+            <p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",fontSize:22,color:C.muted,marginBottom:10}}>Your ritual is empty.</p>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.mutedLight,lineHeight:1.8,marginBottom:20}}>Go to the Library to add the supplements you take.</p>
+            <button onClick={()=>setView("library")} style={{padding:"11px 24px",background:C.burgundy,color:"#fff",border:"none",borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:11,letterSpacing:2,textTransform:"uppercase",cursor:"pointer"}}>Browse Library</button>
+          </div>
+        ):(
+          <div>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginBottom:10}}>{new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"})}</p>
+            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:6}}>
+              <div style={{flex:1,height:3,background:C.blushLight,borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",borderRadius:2,background:`linear-gradient(90deg,${C.burgundy},${C.rose})`,width:`${pct}%`,transition:"width .4s ease"}}/></div>
+              <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:17,fontWeight:700,color:pct===100?C.burgundy:C.muted}}>{done}/{total}</span>
+            </div>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:pct===100?C.burgundy:C.mutedLight,marginBottom:24,fontStyle:"italic"}}>{pct===100?"All done — well done. ◇":"Tap the circle to check off · tap name to learn why"}</p>
+            {morning.length>0&&<div style={{marginBottom:20}}><p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:3,textTransform:"uppercase",color:C.muted,marginBottom:10,paddingBottom:8,borderBottom:`1px solid ${C.border}`}}>Morning</p>{morning.map(s=>renderItem(s,true))}</div>}
+            {evening.length>0&&<div style={{marginBottom:20}}><p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:3,textTransform:"uppercase",color:C.muted,marginBottom:10,paddingBottom:8,borderBottom:`1px solid ${C.border}`}}>Evening</p>{evening.map(s=>renderItem(s,true))}</div>}
+            <button onClick={()=>setView("library")} style={{background:"none",border:`1px solid ${C.border}`,borderRadius:2,padding:"10px 18px",color:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:2,textTransform:"uppercase",cursor:"pointer"}}>+ Add from library</button>
+          </div>
+        )
+      )}
+      {view==="library"&&(
+        <div>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginBottom:6,lineHeight:1.8}}>Browse evidence-based supplements for this phase. Tap + to add to your daily ritual.</p>
+          <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:11,color:C.blushDim,marginBottom:20}}>{myList.length} supplement{myList.length!==1?"s":""} in your ritual</p>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:24}}>
+            {suppCategories.map(cat=>(
+              <button key={cat} onClick={()=>setActiveCategory(cat)} style={{padding:"7px 14px",borderRadius:20,border:`1px solid ${activeCategory===cat?C.burgundy:C.border}`,background:activeCategory===cat?"#fdf0f3":"transparent",color:activeCategory===cat?C.burgundy:C.muted,fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:600,letterSpacing:1,cursor:"pointer"}}>{cat}</button>
+            ))}
+          </div>
+          {catSupps.map(s=>renderItem(s,false))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Calm Timer ── */
+/* ── Flower SVG ── */
+function Flower({scale}){
+  const cx=200, cy=200;
+  return(
+    <svg width="400" height="400" viewBox="0 0 400 400" style={{overflow:"visible",filter:"drop-shadow(0px 12px 48px rgba(200,120,150,0.45))"}}>
+      <defs>
+        <radialGradient id="pg1" cx="50%" cy="15%" r="85%">
+          <stop offset="0%"   stopColor="rgba(255,235,242,1)"/>
+          <stop offset="35%"  stopColor="rgba(235,165,190,0.90)"/>
+          <stop offset="75%"  stopColor="rgba(185,80,115,0.75)"/>
+          <stop offset="100%" stopColor="rgba(130,30,60,0.45)"/>
+        </radialGradient>
+        <radialGradient id="pg2" cx="50%" cy="20%" r="80%">
+          <stop offset="0%"   stopColor="rgba(255,225,238,0.98)"/>
+          <stop offset="45%"  stopColor="rgba(210,120,155,0.85)"/>
+          <stop offset="100%" stopColor="rgba(140,45,75,0.55)"/>
+        </radialGradient>
+        <radialGradient id="pg3" cx="50%" cy="25%" r="75%">
+          <stop offset="0%"   stopColor="rgba(255,240,246,1)"/>
+          <stop offset="50%"  stopColor="rgba(225,155,178,0.88)"/>
+          <stop offset="100%" stopColor="rgba(160,60,90,0.60)"/>
+        </radialGradient>
+        <radialGradient id="pg4" cx="50%" cy="30%" r="70%">
+          <stop offset="0%"   stopColor="rgba(255,248,250,1)"/>
+          <stop offset="55%"  stopColor="rgba(240,190,208,0.85)"/>
+          <stop offset="100%" stopColor="rgba(180,90,120,0.55)"/>
+        </radialGradient>
+        <radialGradient id="cg1" cx="50%" cy="35%" r="65%">
+          <stop offset="0%"   stopColor="rgba(255,250,215,1)"/>
+          <stop offset="45%"  stopColor="rgba(240,200,100,0.95)"/>
+          <stop offset="100%" stopColor="rgba(184,134,11,0.85)"/>
+        </radialGradient>
+        <radialGradient id="glow1" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stopColor="rgba(220,150,175,0.22)"/>
+          <stop offset="100%" stopColor="rgba(220,150,175,0)"/>
+        </radialGradient>
+      </defs>
+
+      {/* Soft background glow */}
+      <ellipse cx={cx} cy={cy} rx="180" ry="180" fill="url(#glow1)"/>
+
+      <g transform={`translate(${cx},${cy}) scale(${scale})`} style={{transition:"transform 0.8s ease-out"}}>
+
+        {/* Layer 1 — 8 long outer petals, very slender and tall */}
+        {Array.from({length:8}).map((_,i)=>(
+          <g key={"L1"+i} transform={`rotate(${(i/8)*360})`}>
+            <ellipse cx="0" cy="-115" rx="28" ry="108"
+              fill="url(#pg1)" opacity="0.88"/>
+          </g>
+        ))}
+
+        {/* Layer 2 — 8 petals offset 22.5° */}
+        {Array.from({length:8}).map((_,i)=>(
+          <g key={"L2"+i} transform={`rotate(${(i/8)*360+22.5})`}>
+            <ellipse cx="0" cy="-95" rx="24" ry="88"
+              fill="url(#pg2)" opacity="0.84"/>
+          </g>
+        ))}
+
+        {/* Layer 3 — 10 medium petals */}
+        {Array.from({length:10}).map((_,i)=>(
+          <g key={"L3"+i} transform={`rotate(${(i/10)*360+10})`}>
+            <ellipse cx="0" cy="-72" rx="20" ry="66"
+              fill="url(#pg3)" opacity="0.80"/>
+          </g>
+        ))}
+
+        {/* Layer 4 — 8 inner petals, soft and round */}
+        {Array.from({length:8}).map((_,i)=>(
+          <g key={"L4"+i} transform={`rotate(${(i/8)*360+5})`}>
+            <ellipse cx="0" cy="-48" rx="16" ry="42"
+              fill="url(#pg4)" opacity="0.88"/>
+          </g>
+        ))}
+
+        {/* Layer 5 — 6 tiny innermost petals */}
+        {Array.from({length:6}).map((_,i)=>(
+          <g key={"L5"+i} transform={`rotate(${(i/6)*360})`}>
+            <ellipse cx="0" cy="-28" rx="11" ry="24"
+              fill="rgba(255,225,235,0.92)" opacity="0.90"/>
+          </g>
+        ))}
+
+        {/* Centre circles — golden warm */}
+        <circle r="34" fill="url(#cg1)" opacity="0.98"/>
+        <circle r="22" fill="rgba(255,248,210,0.96)"/>
+        <circle r="12" fill="rgba(255,252,230,1)"/>
+        <circle r="5"  fill="rgba(255,255,248,1)"/>
+
+        {/* Stamens ring */}
+        {Array.from({length:12}).map((_,i)=>{
+          const a=(i/12)*2*Math.PI;
+          return(
+            <g key={"st"+i}>
+              <circle cx={Math.cos(a)*28} cy={Math.sin(a)*28} r="3" fill="rgba(210,165,60,0.85)"/>
+              <circle cx={Math.cos(a)*22} cy={Math.sin(a)*22} r="1.5" fill="rgba(240,200,100,0.7)"/>
+            </g>
+          );
+        })}
+      </g>
+    </svg>
+  );
+}
+
+function CalmTab(){
+  const [phase, setPhase] = useState("idle");
+  const [techIdx, setTechIdx] = useState(0);
+  const [step,    setStep]    = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  const [round,   setRound]   = useState(1);
+
+  const techniques = [
+    {
+      name:"Resonance Breath",
+      desc:"5.5 in · 5 hold · 6 out — your pattern. Clinically shown to synchronise heart, lungs and nervous system.",
+      rounds:5,
+      steps:[
+        {label:"Breathe in",  dur:5.5, phase:"inhale"},
+        {label:"Hold",        dur:5,   phase:"hold"},
+        {label:"Let it go",   dur:6,   phase:"exhale"},
+      ],
+    },
+    {
+      name:"Physiological Sigh",
+      desc:"Double inhale · long exhale. The fastest known method to reduce physiological arousal. One breath cycle is enough.",
+      rounds:6,
+      steps:[
+        {label:"Inhale",           dur:2,  phase:"inhale"},
+        {label:"Second inhale",    dur:1,  phase:"inhale"},
+        {label:"Long exhale",      dur:8,  phase:"exhale"},
+      ],
+    },
+  ];
+
+  const tech = techniques[techIdx];
+  const totalRounds = tech.rounds;
+  const currentStep = tech.steps[step];
+  const dur = currentStep.dur;
+  const pct = Math.min((elapsed / dur) * 100, 100);
+  const isInhale = currentStep.phase === "inhale";
+  const isHold   = currentStep.phase === "hold";
+
+  // Flower scale — blooms on inhale, holds, closes on exhale
+  const minScale = 0.42, maxScale = 1.0;
+  let flowerScale;
+  if (isInhale)      flowerScale = minScale + (pct/100)*(maxScale-minScale);
+  else if (isHold)   flowerScale = maxScale;
+  else               flowerScale = maxScale - (pct/100)*(maxScale-minScale);
+
+  const bgColors = {inhale:"#2a0e1a", hold:"#1a1408", exhale:"#0e1f18"};
+  const bg = bgColors[currentStep.phase];
+
+  useEffect(()=>{
+    if(phase!=="running") return;
+    const interval = 100;
+    const t = setInterval(()=>{
+      setElapsed(p=>{
+        const next = p + interval/1000;
+        if(next >= dur){
+          const nextStep = step+1;
+          if(nextStep >= tech.steps.length){
+            if(round >= totalRounds){ clearInterval(t); setPhase("done"); return 0; }
+            setRound(r=>r+1); setStep(0); return 0;
+          }
+          setStep(nextStep); return 0;
+        }
+        return next;
+      });
+    }, interval);
+    return ()=>clearInterval(t);
+  },[phase,step,round,dur,tech.steps.length,totalRounds]);
+
+  const start=()=>{ setPhase("running"); setStep(0); setElapsed(0); setRound(1); };
+  const stop =()=>{ setPhase("idle");    setStep(0); setElapsed(0); setRound(1); };
+  const selectTech=i=>{ setTechIdx(i); setPhase("idle"); setStep(0); setElapsed(0); setRound(1); };
+
+
+  if(phase==="idle") return(
+    <div style={{minHeight:"70vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",padding:"40px 24px"}}>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:22,fontWeight:700,color:C.burgundy,marginBottom:6}}>Nervous System Reset</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:13,color:C.blushDim,marginBottom:28,lineHeight:1.8}}>Breathe with the flower. Let it guide you.</p>
+
+      {/* Technique selector */}
+      <div style={{display:"flex",flexDirection:"column",gap:8,width:"100%",maxWidth:400,marginBottom:36}}>
+        {techniques.map((t,i)=>(
+          <div key={i} onClick={()=>selectTech(i)} style={{
+            padding:"16px 18px",background:techIdx===i?"#fdf0f3":C.surface,
+            border:`1px solid ${techIdx===i?C.burgundy:C.border}`,
+            borderLeft:`3px solid ${techIdx===i?C.burgundy:C.blushDim}`,
+            borderRadius:4,cursor:"pointer",textAlign:"left",transition:"all .18s",
+          }}>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:C.burgundy,marginBottom:4}}>{t.name}</p>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,lineHeight:1.7}}>{t.desc}</p>
+          </div>
+        ))}
+      </div>
+
+      <button onClick={start} style={{padding:"16px 52px",background:C.burgundy,color:"#fff",border:"none",borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,cursor:"pointer",boxShadow:"0 6px 24px rgba(107,30,53,0.2)"}}>Begin</button>
+    </div>
+  );
+
+  if(phase==="done") return(
+    <div style={{minHeight:"70vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",padding:"48px 32px"}}>
+      <Flower scale={0.8}/>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:24,fontWeight:700,color:C.burgundy,marginBottom:12,marginTop:16}}>Well done.</p>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,lineHeight:1.9,marginBottom:8,maxWidth:300}}>Your nervous system is already responding.</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:13,color:C.muted,marginBottom:40,maxWidth:280,lineHeight:1.8}}>Notice how you feel right now — compared to a few minutes ago.</p>
+      <div style={{display:"flex",gap:12}}>
+        <button onClick={start} style={{padding:"13px 26px",background:C.burgundy,color:"#fff",border:"none",borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,letterSpacing:2,textTransform:"uppercase",cursor:"pointer"}}>Again</button>
+        <button onClick={stop}  style={{padding:"13px 22px",background:"none",border:`1px solid ${C.border}`,color:C.muted,borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:11,letterSpacing:1,textTransform:"uppercase",cursor:"pointer"}}>Done</button>
+      </div>
+    </div>
+  );
+
+  return(
+    <div style={{
+      position:"fixed",inset:0,zIndex:300,
+      background:bg,
+      display:"flex",flexDirection:"column",
+      alignItems:"center",justifyContent:"center",
+      textAlign:"center",padding:"40px 24px",
+      transition:"background 2s ease",
+    }}>
+      {/* Flower */}
+      <div style={{marginBottom:40}}>
+        <Flower scale={flowerScale}/>
+      </div>
+
+      {/* Phase word */}
+      <p style={{
+        fontFamily:"'DM Sans',sans-serif",
+        fontSize:32,fontWeight:700,color:"rgba(255,255,255,0.9)",
+        lineHeight:1,marginBottom:10,
+        transition:"color 2s ease",
+      }}>{currentStep.label}</p>
+
+      <p style={{
+        fontFamily:"Georgia,serif",fontStyle:"italic",
+        fontSize:13,color:"rgba(255,255,255,0.35)",
+        letterSpacing:.5,marginBottom:52,
+      }}>{isInhale?"the flower blooms":isHold?"hold still":"the flower rests"}</p>
+
+      {/* Thin progress bar */}
+      <div style={{width:140,height:1.5,background:"rgba(255,255,255,0.08)",borderRadius:1,marginBottom:28,overflow:"hidden"}}>
+        <div style={{height:"100%",width:`${pct}%`,background:"rgba(255,255,255,0.25)",borderRadius:1,transition:"width 0.1s linear"}}/>
+      </div>
+
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:2.5,textTransform:"uppercase",color:"rgba(255,255,255,0.2)",marginBottom:28}}>
+        Round {round} of {totalRounds}
+      </p>
+
+      <button onClick={stop} style={{
+        padding:"9px 22px",background:"transparent",
+        border:"1px solid rgba(255,255,255,0.15)",
+        color:"rgba(255,255,255,0.3)",borderRadius:2,
+        fontFamily:"'DM Sans',sans-serif",fontSize:10,
+        letterSpacing:2,textTransform:"uppercase",cursor:"pointer",
+      }}>Stop</button>
+    </div>
+  );
+}
+
+
+/* ── Rest Tab ── */
+function RestTab(){
+  return(
+    <div>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:32,fontWeight:700,color:C.burgundy,marginBottom:6,lineHeight:1.1}}>Rest is Training.</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:15,color:C.blushDim,marginBottom:32,lineHeight:1.7}}>Not a reward. Not laziness. Not falling behind.<br/>The adaptation happens when you rest.</p>
+      {[
+        {title:"Why this matters more after 45",col:C.burgundy,body:"Estrogen decline means cortisol spikes harder and recovers slower. Overtraining in perimenopause does not make you stronger — it raises cortisol further, breaks down muscle, disrupts sleep, and worsens every symptom you are already managing. Rest days are not optional. They are where the work pays off."},
+        {title:"Active rest — walking, rowing, movement that restores",col:C.gold,body:"A walk is one of the best things you can do on a rest day. Outside in fresh air is ideal — natural light and the rhythm of walking regulate cortisol, lift mood, and reduce soreness without adding training stress. A treadmill walk counts equally.\n\nEasy rowing is another excellent option — full body, low impact, rhythmic and calming on the nervous system. Full rest days — stillness, sleep, nourishment — are when muscle fibres repair, hormones regulate, and the nervous system resets. You need both. Every week."},
+      ].map(card=>(
+        <div key={card.title} style={{background:C.surface,border:`1px solid ${C.border}`,borderLeft:`3px solid ${card.col}`,borderRadius:4,padding:"22px 24px",marginBottom:8,boxShadow:"0 1px 8px rgba(107,30,53,0.04)"}}>
+          <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:700,color:C.ink,marginBottom:8}}>{card.title}</p>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,lineHeight:1.9,whiteSpace:"pre-line"}}>{card.body}</p>
+        </div>
+      ))}
+      <div style={{background:C.surface,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.sage}`,borderRadius:4,padding:"22px 24px",marginBottom:24}}>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:700,color:C.ink,marginBottom:12}}>Signs you need more rest</p>
+        {["You dread training when you usually enjoy it","Sleep is worsening despite good habits","Anxiety or irritability increases in days after training","Strength is plateauing or going backwards","You are catching every illness that passes through","Joints ache persistently, not just after sessions"].map((sign,i)=>(
+          <div key={i} style={{display:"flex",gap:10,marginBottom:8,alignItems:"flex-start"}}>
+            <span style={{color:C.blushDim,marginTop:2,flexShrink:0}}>◇</span>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,lineHeight:1.7}}>{sign}</p>
+          </div>
+        ))}
+      </div>
+      <div style={{background:`linear-gradient(135deg,${C.burgundy},#8b2a44)`,borderRadius:4,padding:"28px 26px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-30,right:-30,width:120,height:120,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.08)"}}/>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",fontSize:22,fontWeight:700,color:"#fff",marginBottom:12,lineHeight:1.3,position:"relative"}}>"Exercise is a lifestyle, not a trend."</p>
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:"rgba(255,255,255,0.75)",lineHeight:1.9,position:"relative"}}>hiBloom is built for the long game. Consistent, intelligent, sustainable movement over years. Rest is part of that. Joy is part of that. So is grace.</p>
+      </div>
+    </div>
+  );
+}
+
+function ExpandablePrinciple({title,body,detail}){
+  const [open,setOpen]=useState(false);
+  return(
+    <div style={{background:C.surface,border:`1px solid ${open?C.burgundy:C.border}`,borderRadius:3,overflow:"hidden",transition:"border-color .2s"}}>
+      <div onClick={()=>setOpen(!open)} style={{padding:"18px 20px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+        <div style={{flex:1}}>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:17,fontWeight:700,color:C.burgundy,marginBottom:5}}>{title}</p>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,lineHeight:1.85}}>{body}</p>
+        </div>
+        <span style={{color:C.mutedLight,fontSize:14,display:"inline-block",transition:"transform .2s",transform:open?"rotate(90deg)":"rotate(0deg)",flexShrink:0,marginTop:2}}>›</span>
+      </div>
+      {open&&(
+        <div style={{borderTop:`1px solid ${C.border}`,padding:"16px 20px 20px"}}>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,lineHeight:1.9,whiteSpace:"pre-line"}}>{detail}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RestPrinciple(){
+  const [open,setOpen]=useState(false);
+  return(
+    <div style={{background:C.surface,border:`1px solid ${open?C.burgundy:C.border}`,borderRadius:3,overflow:"hidden",transition:"border-color .2s"}}>
+      <div onClick={()=>setOpen(!open)} style={{padding:"18px 20px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:700,color:C.burgundy}}>Rest Is Not Optional</p>
+        <span style={{color:C.mutedLight,fontSize:14,display:"inline-block",transition:"transform .2s",transform:open?"rotate(90deg)":"rotate(0deg)"}}>›</span>
+      </div>
+      {open&&(
+        <div style={{borderTop:`1px solid ${C.border}`,padding:"0 20px 24px"}}>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,lineHeight:1.9,marginTop:16,marginBottom:16}}>Two rest days minimum every week. Your nervous system needs recovery as much as your muscles do — and after 45, this matters more than ever.</p>
+
+          {[
+            {title:"Why rest matters more after 45",col:C.burgundy,body:"Estrogen decline means cortisol spikes harder and recovers slower. Overtraining in perimenopause does not make you stronger — it raises cortisol further, breaks down muscle, disrupts sleep, and worsens every symptom you are already managing. Rest days are not optional. They are where the work pays off."},
+            {title:"Active rest vs full rest",col:C.gold,body:"Active rest days — a walk outside, easy rowing, gentle stretching — keep blood moving, regulate cortisol, and reduce soreness without taxing the nervous system. Outside or treadmill, both are equally valid.\n\nFull rest days — stillness, sleep, nourishment — are when muscle fibres repair, hormones regulate, and the nervous system resets completely. You need both. Every week."},
+          ].map(card=>(
+            <div key={card.title} style={{border:`1px solid ${C.border}`,borderLeft:`3px solid ${card.col}`,borderRadius:3,padding:"16px 18px",marginBottom:8}}>
+              <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:C.ink,marginBottom:6}}>{card.title}</p>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,lineHeight:1.9,whiteSpace:"pre-line"}}>{card.body}</p>
+            </div>
+          ))}
+
+          <div style={{border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.sage}`,borderRadius:3,padding:"16px 18px",marginBottom:8}}>
+            <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:C.ink,marginBottom:10}}>Signs you need more rest</p>
+            {["You dread training when you usually enjoy it","Sleep is worsening despite good habits","Anxiety or irritability increases after training","Strength is plateauing or going backwards","You are catching every illness that passes through","Joints ache persistently, not just after sessions"].map((sign,i)=>(
+              <div key={i} style={{display:"flex",gap:10,marginBottom:6,alignItems:"flex-start"}}>
+                <span style={{color:C.blushDim,marginTop:2,flexShrink:0}}>◇</span>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,lineHeight:1.7}}>{sign}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{background:`linear-gradient(135deg,${C.burgundy},#8b2a44)`,borderRadius:3,padding:"18px 20px",position:"relative",overflow:"hidden"}}>
+            <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.08)"}}/>
+            <p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",fontSize:17,fontWeight:700,color:"#fff",marginBottom:8,lineHeight:1.3,position:"relative"}}>"Exercise is a lifestyle, not a trend."</p>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:"rgba(255,255,255,0.75)",lineHeight:1.9,position:"relative"}}>Rest is part of the practice. Joy is part of it. So is grace. You are building a relationship with movement that will serve you for the rest of your life.</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Plan Tab ── */
+const DAYS=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const flexSuggestion=pa=>{
+  if(!pa)return{type:"Flexible",note:"Complete your Morning Pulse for a personalised suggestion.",col:"#9a7a84"};
+  const low=pa.energy==="low",high=pa.energy==="high",stressed=pa.mood==="anxious"||pa.mood==="irritable",achy=pa.body==="achy"||pa.body==="bloated",poorSleep=pa.sleep==="poor";
+  if((low&&poorSleep)||(low&&achy))return{type:"Full Rest",note:"Your body is asking for stillness. Full rest is the right call today.",col:"#c4a8b0"};
+  if(stressed)return{type:"Walk",note:"30–40 min walk outside or treadmill. Movement that calms, not pushes.",col:"#7a9e7e"};
+  if(low)return{type:"Walk",note:"20–30 min easy walk. No pace target. Just move.",col:"#7a9e7e"};
+  if(high)return{type:"Active Rest",note:"A walk, easy row, or 20 min treadmill. Keep it enjoyable.",col:"#b8860b"};
+  return{type:"Walk or Easy Row",note:"30–40 min walk or gentle row. Both are perfect active rest.",col:"#7a9e7e"};
+};
+
+/* ── Number Input ── */
+function NumInput({label,value,onChange,placeholder}){
+  return(<div><label style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",color:C.muted,display:"block",marginBottom:6}}>{label}</label><input type="number" value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} style={{width:"100%",padding:"13px 14px",background:C.bgDeep,border:`1px solid ${C.border}`,borderRadius:2,color:C.ink,fontSize:20,fontFamily:"Georgia,serif",transition:"border-color .15s"}} onFocus={e=>{e.target.style.borderColor=C.burgundy;}} onBlur={e=>{e.target.style.borderColor=C.border;}}/></div>);
+}
+
+function SessionView({day,focusIds,onClose,selected,setSelected,sets,setSets,reps,setReps,weight,setWeight,notes,setNotes,saveLog}){
+  const plan=buildSession(focusIds&&focusIds.length>0?focusIds:["fullbody"]);
+  const [section,setSection]=useState("warmup");
+  if(!plan)return null;
+  return(
+    <div style={{position:"fixed",inset:0,background:"rgba(10,6,8,0.7)",zIndex:200,display:"flex",alignItems:"flex-end",justifyContent:"center"}} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{background:C.bg,width:"100%",maxWidth:760,maxHeight:"90vh",overflowY:"auto",borderRadius:"16px 16px 0 0",paddingBottom:40}}>
+        <div style={{background:`linear-gradient(135deg,${plan.color},${C.burgundy})`,padding:"24px 24px 20px"}}>          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+            <div>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:3,textTransform:"uppercase",color:"rgba(255,255,255,0.6)",marginBottom:4}}>{day}</p>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:20,fontWeight:700,color:"#fff"}}>{plan.label}</p>
+            </div>
+            <button onClick={onClose} style={{background:"rgba(255,255,255,0.15)",border:"none",color:"#fff",width:32,height:32,borderRadius:"50%",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
+          </div>
+          <div style={{display:"flex",gap:6,overflowX:"auto"}}>
+            {[["warmup","Warm-Up"],["exercises","Exercises"],["log","Log"],["finisher","Finisher"],["mobility","Cool Down"]].map(([key,label])=>(
+              <button key={key} onClick={()=>setSection(key)} style={{padding:"7px 14px",borderRadius:20,border:"none",cursor:"pointer",whiteSpace:"nowrap",fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:600,letterSpacing:1.5,textTransform:"uppercase",background:section===key?"#fff":"rgba(255,255,255,0.15)",color:section===key?plan.color:"rgba(255,255,255,0.8)"}}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <div style={{padding:"24px"}}>
+          {section==="warmup"&&(
+            <div>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.7}}>Prime your joints and nervous system before any load. Never skip this.</p>
+              {plan.warmup.map((w,i)=>(
+                <div key={i} style={{display:"flex",gap:14,padding:"14px 0",borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:C.blushLight,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:13,fontWeight:700,color:C.burgundy}}>{i+1}</span>
+                  </div>
+                  <div>
+                    <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:700,color:C.ink,marginBottom:2}}>{w.name}</p>
+                    <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted}}>{w.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {section==="exercises"&&(
+            <div>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.7}}>Machine listed first, free weight alternative shown. Complete warm-up and working sets as prescribed.</p>
+              {plan.exercises.map((ex,i)=>(
+                <div key={i} style={{background:C.surface,border:`1px solid ${C.border}`,borderLeft:`3px solid ${plan.color}`,borderRadius:4,padding:"16px 18px",marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6,flexWrap:"wrap",gap:8}}>
+                    <div>
+                      <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:19,fontWeight:700,color:C.ink,marginBottom:1}}>{ex.name}</p>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,fontStyle:"italic"}}>or {ex.alt}</p>
+                    </div>
+                    <div style={{textAlign:"right",flexShrink:0}}>
+                      <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:700,color:plan.color}}>{ex.sets}</p>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:C.muted}}>{ex.reps} · rest {ex.rest}</p>
+                    </div>
+                  </div>
+                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,lineHeight:1.7}}>{ex.cue}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {section==="log"&&(
+            <div>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.7}}>Select an exercise and record your sets. Everything saves to your History.</p>
+              <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:20}}>
+                {plan.exercises.map((ex,i)=>(
+                  <div key={i} onClick={()=>setSelected(strengthExercises.find(s=>s.name===ex.name)||strengthExercises[0])} style={{padding:"12px 16px",background:selected.name===ex.name?"#fdf0f3":C.surface,border:`1px solid ${selected.name===ex.name?C.burgundy:C.border}`,borderLeft:`3px solid ${selected.name===ex.name?C.burgundy:C.border}`,borderRadius:3,cursor:"pointer",transition:"all .18s",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,fontWeight:700,color:selected.name===ex.name?C.burgundy:C.ink,marginBottom:1}}>{ex.name}</p>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:C.muted}}>{ex.sets} · {ex.reps} · rest {ex.rest}</p>
+                    </div>
+                    <div style={{width:18,height:18,borderRadius:"50%",border:`1.5px solid ${selected.name===ex.name?C.burgundy:C.border}`,background:selected.name===ex.name?C.burgundy:"transparent",flexShrink:0}}/>
+                  </div>
+                ))}
+              </div>
+              <div style={{background:C.bgDeep,borderRadius:4,padding:"18px"}}>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:C.burgundy,marginBottom:4}}>{selected.name}</p>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginBottom:14}}>{selected.cue}</p>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
+                  <NumInput label="Sets" value={sets} onChange={setSets} placeholder="2"/>
+                  <NumInput label="Reps" value={reps} onChange={setReps} placeholder="10"/>
+                  <NumInput label="kg" value={weight} onChange={setWeight} placeholder="20"/>
+                </div>
+                <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2} placeholder="How it felt, form notes..."
+                  style={{width:"100%",padding:"10px 12px",fontFamily:"Georgia,serif",fontStyle:"italic",background:C.surface,border:`1px solid ${C.border}`,borderRadius:2,color:C.ink,fontSize:13,resize:"vertical",lineHeight:1.6}}
+                  onFocus={e=>{e.target.style.borderColor=C.burgundy;}} onBlur={e=>{e.target.style.borderColor=C.border;}}
+                />
+                <button onClick={saveLog} style={{width:"100%",marginTop:12,padding:"14px",background:C.burgundy,color:"#fff",border:"none",borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,letterSpacing:3,textTransform:"uppercase",cursor:"pointer",boxShadow:"0 4px 16px rgba(107,30,53,0.2)"}}>Record Exercise</button>
+              </div>
+            </div>
+          )}
+          {section==="finisher"&&(
+            <div>
+              {plan.finisher ? (
+                <>
+                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,marginBottom:20,lineHeight:1.7}}>Weights are done. Now use your post-lift window. Growth hormone is elevated and your body is primed to oxidise fat. Do this before you stretch — the cool-down comes after.</p>
+                  <div style={{background:C.surface,border:`1px solid ${C.border}`,borderLeft:`3px solid ${C.gold}`,borderRadius:4,padding:"20px 22px"}}>
+                    <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:700,color:C.ink,marginBottom:6}}>{plan.finisher.name}</p>
+                    <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted}}>{plan.finisher.detail}</p>
+                  </div>
+                </>
+              ) : (
+                <div style={{textAlign:"center",padding:"40px 20px"}}>
+                  <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:20,color:C.muted,marginBottom:8}}>No finisher for this session.</p>
+                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.mutedLight,lineHeight:1.7}}>Mobility-only and cardio sessions don't include a post-lift finisher. Head straight to the Mobility tab.</p>
+                </div>
+              )}
+            </div>
+          )}
+          {section==="mobility"&&(
+            <div>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.muted,marginBottom:16,lineHeight:1.7}}>Strength done. Cardio finisher done. Now cool down properly. This is where you protect your joints, reduce soreness, and support long-term training. Never skip this.</p>
+              {plan.mobility.map((m,i)=>(
+                <div key={i} style={{display:"flex",gap:14,padding:"14px 0",borderBottom:`1px solid ${C.border}`}}>
+                  <div style={{width:24,height:24,borderRadius:"50%",background:"#e8f0e8",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                    <span style={{color:C.sage,fontSize:13}}>◇</span>
+                  </div>
+                  <div>
+                    <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:18,fontWeight:700,color:C.ink,marginBottom:2}}>{m.name}</p>
+                    <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted}}>{m.detail}</p>
+                  </div>
+                </div>
+              ))}
+              <div style={{background:`linear-gradient(135deg,${C.burgundy},#8b2a44)`,borderRadius:4,padding:"18px 20px",marginTop:20}}>
+                <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:14,color:"rgba(255,255,255,0.85)",lineHeight:1.8}}>You trained today. You stretched. You did everything right. This is what the long game looks like.</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PlanTab({pulseAnswers}){
+  const [schedule,setSchedule]=useState(()=>{try{return JSON.parse(localStorage.getItem(PLAN_KEY)||"null");}catch{return null;}});
+  const [editing,setEditing]=useState(()=>{try{return !JSON.parse(localStorage.getItem(PLAN_KEY)||"null");}catch{return true;}});
+  const [draft,setDraft]=useState(()=>{try{return JSON.parse(localStorage.getItem(PLAN_KEY)||"null")||{strength:[],fullRest:[],focus:{}};}catch{return{strength:[],fullRest:[],focus:{}};}});
+  const [sessionDay,setSessionDay]=useState(null);
+  const todayName=DAYS[new Date().getDay()===0?6:new Date().getDay()-1];
+  const flex=flexSuggestion(pulseAnswers);
+
+  const save=()=>{if(draft.strength.length<1)return;localStorage.setItem(PLAN_KEY,JSON.stringify(draft));setSchedule(draft);setEditing(false);};
+  const toggleDay=(day,type)=>{setDraft(prev=>{const other=type==="strength"?"fullRest":"strength";if(prev[other].includes(day))return prev;const alreadyIn=prev[type].includes(day);const newList=alreadyIn?prev[type].filter(d=>d!==day):[...prev[type],day];const nf={...prev.focus};if(alreadyIn)delete nf[day];return{...prev,[type]:newList,focus:nf};});};
+
+  const toggleFocus=(day,fid)=>{
+    setDraft(prev=>{
+      const current=prev.focus?.[day]||[];
+      const has=current.includes(fid);
+      const updated=has?current.filter(x=>x!==fid):[...current,fid];
+      return{...prev,focus:{...prev.focus,[day]:updated}};
+    });
+  };
+
+  const getDayConfig=day=>{
+    if(!schedule)return null;
+    if(schedule.strength.includes(day)){
+      const ids=schedule.focus?.[day]||["fullbody"];
+      const label=ids.map(id=>focusOptions.find(f=>f.id===id)?.label||id).join(" + ");
+      const color=focusOptions.find(f=>f.id===ids[0])?.color||C.burgundy;
+      return{type:"Strength",subtype:label,col:color,note:"Tap to open your session plan",tappable:true};
+    }
+    if(schedule.fullRest.includes(day))return{type:"Full Rest",col:C.mutedLight,note:"Complete rest. Sleep, nourish, be still."};
+    if(day===todayName)return{type:flex.type,col:flex.col,note:flex.note,isPulse:!!pulseAnswers};
+    return{type:"Flexible",col:C.sage,note:"Walk, easy row, or full rest — Morning Pulse guides you."};
+  };
+
+  if(editing)return(
+    <div>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:26,fontWeight:500,color:C.burgundy,marginBottom:4}}>Your Personal Plan</p>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.inkMid,marginBottom:6,lineHeight:1.8}}>Set your anchor days. Everything else adapts to how you feel each morning.</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:12,color:C.blushDim,marginBottom:28}}>You can always come back and adjust this.</p>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:C.muted,marginBottom:12}}>Which days do you strength train?</p>
+      <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:20}}>
+        {DAYS.map(day=>{const sel=draft.strength.includes(day),blocked=draft.fullRest.includes(day);return(<button key={day} onClick={()=>!blocked&&toggleDay(day,"strength")} style={{padding:"10px 16px",borderRadius:3,cursor:blocked?"not-allowed":"pointer",background:sel?C.burgundy:C.surface,border:`1px solid ${sel?C.burgundy:blocked?C.blushLight:C.border}`,color:sel?"#fff":blocked?C.blushDim:C.ink,fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:sel?700:400,transition:"all .18s",opacity:blocked?.4:1}}>{day.slice(0,3)}</button>);})}
+      </div>
+      {draft.strength.length>0&&(
+        <div style={{marginBottom:24}}>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",color:C.muted,marginBottom:4}}>What will you train each day? Select all that apply.</p>
+          <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:11,color:C.blushDim,marginBottom:14}}>Tap multiple to combine — e.g. Legs + Core, Back + Arms + Shoulders</p>
+          {draft.strength.map(day=>{
+            const selected=draft.focus?.[day]||[];
+            return(
+              <div key={day} style={{marginBottom:16}}>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:14,color:C.ink,marginBottom:8}}>{day}</p>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {focusOptions.map(f=>{
+                    const sel=selected.includes(f.id);
+                    return(
+                      <button key={f.id} onClick={()=>toggleFocus(day,f.id)} style={{
+                        padding:"7px 14px",borderRadius:20,
+                        border:`1px solid ${sel?f.color:C.border}`,
+                        background:sel?f.color:"transparent",
+                        color:sel?"#fff":C.muted,
+                        fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,
+                        cursor:"pointer",transition:"all .18s",
+                        display:"flex",alignItems:"center",gap:5,
+                      }}>
+                        <span style={{fontSize:12}}>{f.icon}</span>{f.label}
+                        {sel&&<span style={{fontSize:10,opacity:.8}}>✓</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+                {selected.length>0&&(
+                  <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:C.muted,marginTop:6,fontStyle:"italic"}}>
+                    {selected.map(id=>focusOptions.find(f=>f.id===id)?.label||id).join(" + ")}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:C.muted,marginBottom:12}}>Which day is always full rest?</p>
+      <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:28}}>
+        {DAYS.map(day=>{const sel=draft.fullRest.includes(day),blocked=draft.strength.includes(day);return(<button key={day} onClick={()=>!blocked&&toggleDay(day,"fullRest")} style={{padding:"10px 16px",borderRadius:3,cursor:blocked?"not-allowed":"pointer",background:sel?"#9a7a84":C.surface,border:`1px solid ${sel?"#9a7a84":blocked?C.blushLight:C.border}`,color:sel?"#fff":blocked?C.blushDim:C.ink,fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:sel?700:400,transition:"all .18s",opacity:blocked?.4:1}}>{day.slice(0,3)}</button>);})}
+      </div>
+      {draft.strength.length>0&&(
+        <div style={{marginBottom:28}}>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",color:C.muted,marginBottom:10}}>Preview</p>
+          <div style={{display:"flex",flexDirection:"column",gap:3}}>
+            {DAYS.map(day=>{const isStr=draft.strength.includes(day),isRest=draft.fullRest.includes(day);const ids=draft.focus?.[day]||[];const label=isStr?(ids.length>0?ids.map(id=>focusOptions.find(f=>f.id===id)?.label||id).join(" + "):"Set focus above"):isRest?"Full Rest":"Flexible";const col=isStr?(focusOptions.find(f=>f.id===ids[0])?.color||C.burgundy):isRest?C.mutedLight:C.sage;return(<div key={day} style={{display:"grid",gridTemplateColumns:"68px 1fr",background:C.surface,border:`1px solid ${C.border}`,borderRadius:3,overflow:"hidden"}}><div style={{padding:"10px 12px",borderRight:`1px solid ${C.border}`}}><p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:13,color:day===todayName?C.burgundy:C.ink,fontWeight:day===todayName?700:400}}>{day.slice(0,3)}</p></div><div style={{padding:"10px 14px"}}><p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,fontWeight:600,letterSpacing:.5,textTransform:"uppercase",color:col}}>{label}</p></div></div>);})}
+          </div>
+        </div>
+      )}
+      <button onClick={save} disabled={draft.strength.length<1} style={{width:"100%",padding:"17px",background:draft.strength.length<1?C.blushLight:C.burgundy,color:draft.strength.length<1?C.mutedLight:"#fff",border:"none",borderRadius:2,fontFamily:"'DM Sans',sans-serif",fontSize:11,fontWeight:600,letterSpacing:3.5,textTransform:"uppercase",cursor:draft.strength.length<1?"not-allowed":"pointer",boxShadow:draft.strength.length>0?"0 4px 20px rgba(107,30,53,0.25)":"none"}}>Save My Plan</button>
+    </div>
+  );
+
+  return(
+    <div>
+      {sessionDay&&<SessionView day={sessionDay} focusIds={schedule?.focus?.[sessionDay]||["fullbody"]} onClose={()=>setSessionDay(null)} selected={selected} setSelected={setSelected} sets={sets} setSets={setSets} reps={reps} setReps={setReps} weight={weight} setWeight={setWeight} notes={notes} setNotes={setNotes} saveLog={saveLog}/>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:26,fontWeight:500,color:C.burgundy}}>Your Week</p>
+        <button onClick={()=>setEditing(true)} style={{background:"none",border:"none",color:C.mutedLight,fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:1.5,textTransform:"uppercase",cursor:"pointer",marginTop:6}}>Edit</button>
+      </div>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginBottom:24}}>Tap a strength day to open your session plan, log your sets, and record your training.</p>
+      <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:36}}>
+        {DAYS.map(day=>{
+          const cfg=getDayConfig(day),isToday=day===todayName,isStrength=schedule?.strength?.includes(day);
+          return(
+            <div key={day} onClick={isStrength?()=>setSessionDay(day):undefined} style={{display:"grid",gridTemplateColumns:"56px auto 1fr",background:isToday?"#fdf6f8":C.surface,border:`1px solid ${isToday?C.burgundy:C.border}`,borderLeft:`3px solid ${cfg?.col||C.border}`,borderRadius:4,overflow:"hidden",cursor:isStrength?"pointer":"default",transition:"all .2s",boxShadow:isToday?"0 2px 12px rgba(107,30,53,0.08)":"0 1px 4px rgba(107,30,53,0.03)"}}>
+              <div style={{padding:"16px 10px",borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",justifyContent:"center",alignItems:"center"}}>
+                <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,color:isToday?C.burgundy:C.ink,fontWeight:isToday?700:400,textAlign:"center"}}>{day.slice(0,3)}</p>
+                {isToday&&<p style={{fontFamily:"'DM Sans',sans-serif",fontSize:7,color:C.rose,letterSpacing:1,textTransform:"uppercase",marginTop:2}}>Today</p>}
+              </div>
+              <div style={{padding:"16px 14px",borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",justifyContent:"center",minWidth:80}}>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase",color:cfg?.col,marginBottom:cfg?.subtype?3:0}}>{cfg?.type}</p>
+                {cfg?.subtype&&<p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:11,color:C.muted}}>{cfg.subtype}</p>}
+                {cfg?.isPulse&&<p style={{fontFamily:"'DM Sans',sans-serif",fontSize:8,color:C.blushDim,marginTop:2,fontStyle:"italic"}}>from pulse</p>}
+              </div>
+              <div style={{padding:"16px 16px",display:"flex",alignItems:"center",justifyContent:"space-between",gap:8}}>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:isToday?C.inkMid:C.muted,lineHeight:1.6}}>{cfg?.note}</p>
+                {isStrength&&<span style={{color:cfg?.col,fontSize:16,flexShrink:0}}>›</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:C.muted,marginBottom:12}}>Principles</p>
+      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+        {[
+          {title:"Progressive Overload", body:"Add weight or reps each week. The body adapts — give it a reason to keep changing.", detail:"Progressive overload is the single most important principle in strength training. Your body is highly efficient — it adapts to stress quickly and then stops changing unless you give it a new reason to.\n\nThis does not mean adding weight every single session. It means the trend over weeks and months should move upward. Some weeks you add a rep. Some weeks you add 2.5kg. Some weeks you focus on the same weight with better form — that counts too.\n\nFor women in perimenopause this matters especially because muscle loss accelerates after 40. Progressive overload is what counteracts that. Without it, you maintain at best. With it, you build — and building muscle is one of the most powerful things you can do for your metabolism, bone density, and long-term health."},
+          {title:"Protein Priority", body:"1.6–2g per kg bodyweight daily. The single most impactful nutrition change after 45.", detail:"After 45, anabolic resistance increases — your body becomes less efficient at using protein to build and repair muscle. You need more protein per meal than you did in your 30s to trigger the same muscle-building response.\n\nThe research is clear: 1.6–2g of protein per kg of bodyweight daily is the target for women in this phase who are strength training. For a 70kg woman that is 112–140g per day.\n\nSpread it across meals — your body can only use around 30–40g per sitting effectively. A high-protein breakfast matters as much as post-workout protein. Prioritise whole food sources — meat, fish, eggs, dairy, legumes — and use protein powder to close gaps.\n\nThis one change — more than any supplement or workout tweak — has the most evidence behind it for body composition and muscle retention after 40."},
+          {title:"Sleep Is Training", body:"Muscle repairs during deep sleep. 7–9 hours is part of your program.", detail:"Sleep is not recovery from training. Sleep is training.\n\nDuring deep sleep your body releases growth hormone, repairs muscle fibres, consolidates motor patterns, and regulates the hormones that control appetite, stress, and metabolism. Without sufficient sleep, none of the work you do in the gym pays off the way it should.\n\nFor women in perimenopause, sleep is also where hormonal regulation happens. Night sweats, disrupted sleep, and early waking are common — and they compound. Poor sleep raises cortisol, which breaks down muscle, stores fat, amplifies anxiety, and makes training feel harder.\n\nPrioritising sleep is not soft. It is the highest-leverage recovery tool available. 7–9 hours. Cool room. Dark. Consistent bedtime. Magnesium glycinate in the evening. These are part of your training plan."},
+          {title:"Patience Over Intensity", body:"Consistent moderate effort outperforms sporadic extreme effort. Every single time.", detail:"The fitness industry sells intensity. Transformation. Going harder. And for women in perimenopause, following that model is one of the fastest ways to stall progress, raise cortisol, disrupt sleep, and feel worse.\n\nThe research on long-term body composition consistently shows the same thing: the women who make the most progress over years are not the ones who train the hardest. They are the ones who train consistently, recover properly, and never do so much that they need a week off.\n\nThree solid strength sessions per week, every week, for a year will produce dramatically better results than five brutal sessions per week for six weeks followed by burnout and injury.\n\nThis is not an excuse to go easy. It is permission to go sustainable. Show up, do the work, recover, repeat. That is the whole programme."},
+        ].map(p=>(
+          <ExpandablePrinciple key={p.title} title={p.title} body={p.body} detail={p.detail}/>
+        ))}
+        <RestPrinciple/>
+      </div>
+    </div>
+  );
+}
+
+/* ── Hormones Tab ── */
+const hormoneSections = [
+  {
+    group:"What Is Perimenopause",
+    items:[
+      {title:"The transition — what is actually happening", summary:"Not a sudden event. A gradual, complex hormonal shift that can begin in your late 30s.", detail:"Perimenopause is the transition phase leading up to menopause — the point where a woman has not had a period for 12 consecutive months. It is not a single moment. It is a process that typically begins between ages 38 and 45, though it can start earlier or later.\n\nDuring perimenopause, the ovaries gradually produce less estrogen and progesterone. But the decline is not smooth or linear — it is erratic. Hormone levels spike and crash unpredictably. This unpredictability is precisely why symptoms feel so confusing and inconsistent.\n\nThe average duration of perimenopause is 4–8 years. Some women experience it for 2 years. Some for 12. The timeline is highly individual and largely genetic.\n\nMenopause itself is a single day — the day 12 months after your last period. Everything before that day is perimenopause. Everything after is postmenopause.\n\nUnderstanding this timeline matters because many women are in perimenopause for years before they receive a diagnosis — often because symptoms are attributed to stress, depression, thyroid issues, or simply 'getting older'. Knowing what is actually happening is the first step to navigating it with intelligence."},
+      {title:"Why symptoms vary so much between women", summary:"Same transition, completely different experiences. Here is why.", detail:"Two women the same age, same weight, same lifestyle can have completely different perimenopause experiences. One barely notices the transition. Another is significantly impacted for years. This variation is real, not imagined, and it has biological explanations.\n\nGenetics: how your mother experienced menopause is the single strongest predictor of your own experience. Timing, symptom severity, and duration are all substantially heritable.\n\nBody composition: adipose (fat) tissue produces a weak form of estrogen called estrone. Women with higher body fat percentages have a modest buffer against the estrogen decline — which can reduce severity of some symptoms, though it increases other risks.\n\nStress history: chronic stress dysregulates the HPA axis — the hypothalamus-pituitary-adrenal system that governs cortisol. Women who enter perimenopause with already dysregulated cortisol tend to experience more severe symptoms.\n\nSleep quality: the relationship between sleep and hormones is bidirectional. Poor sleep worsens hormonal dysregulation. Hormonal dysregulation worsens sleep. Women who enter perimenopause with existing sleep issues often have a harder time.\n\nNutrition and gut health: the gut microbiome plays a direct role in estrogen metabolism. A diverse, healthy microbiome helps process and eliminate estrogen efficiently. A disrupted one worsens hormonal imbalance.\n\nThis is not about some women being stronger than others. It is biology. And it means that lifestyle — sleep, nutrition, strength training, stress management — genuinely changes the experience."},
+    ]
+  },
+  {
+    group:"Your Hormones Explained",
+    items:[
+      {title:"Estrogen", summary:"The most talked about hormone in menopause — and the most misunderstood.", detail:"Estrogen is not one hormone — it is a family of three: estradiol (the dominant and most potent form during reproductive years), estrone (produced by fat tissue, dominant after menopause), and estriol (produced primarily during pregnancy).\n\nWhat estrogen does in the body is remarkable in scope. It regulates the menstrual cycle. It maintains bone density. It supports cardiovascular health. It influences memory and cognitive function. It regulates body temperature. It maintains vaginal and urinary tract tissue. It supports skin collagen and elasticity. It influences mood through its effect on serotonin. It affects joint lubrication, sleep quality, and even the gut microbiome.\n\nThis is why estrogen decline causes such wide-ranging symptoms. It is not just a reproductive hormone — it is a systemic regulatory hormone that affects almost every organ system.\n\nIn perimenopause, estradiol levels fluctuate wildly before declining. This erratic pattern — not just the decline itself — is responsible for many of the most disruptive symptoms. A day with high estrogen followed by a crash can cause significant mood shifts, fluid retention, and breast tenderness. A period of low estrogen brings hot flashes, vaginal dryness, brain fog, and sleep disruption.\n\nEstrogen levels do not decline to zero after menopause. They settle at a lower level — with estrone becoming the primary form, produced by adipose tissue and the adrenal glands."},
+      {title:"Progesterone", summary:"The calming hormone. Its decline often hits harder than estrogen's — and is less discussed.", detail:"Progesterone is produced primarily by the corpus luteum — the structure left behind in the ovary after ovulation. As ovulation becomes less frequent and eventually stops in perimenopause, progesterone production declines significantly.\n\nProgesterone is sometimes called the calming hormone — and for good reason. It has a sedative effect on the nervous system by binding to GABA receptors, the same receptors targeted by anti-anxiety medications. It promotes sleep, reduces anxiety, and counterbalances estrogen's stimulating effects.\n\nWhen progesterone declines faster than estrogen — which is common in early perimenopause — the result is estrogen dominance. This is a relative excess of estrogen compared to progesterone, and it causes a characteristic cluster of symptoms: anxiety, irritability, sleep disruption (particularly difficulty falling asleep and staying asleep), heavy periods, breast tenderness, and mood instability.\n\nMany women in early perimenopause describe feeling 'wired but tired' — exhausted but unable to switch off. This is frequently progesterone decline.\n\nProgesterone also plays an important role in bone health, thyroid function, and blood sugar regulation — making its decline relevant beyond reproductive health.\n\nFor women considering hormone therapy, progesterone is often the hormone that makes the most immediate difference to sleep and anxiety — effects that are felt within days of starting treatment."},
+      {title:"Cortisol", summary:"The stress hormone becomes dysregulated in perimenopause — and affects everything else.", detail:"Cortisol is produced by the adrenal glands in response to stress — physical, psychological, or metabolic. It is essential for life: it regulates blood sugar, blood pressure, immune function, and the sleep-wake cycle.\n\nIn a healthy system, cortisol follows a diurnal rhythm — high in the morning to facilitate waking and alertness, gradually declining through the day, lowest at night to allow sleep.\n\nIn perimenopause, this rhythm becomes disrupted. Estrogen and progesterone both modulate cortisol production and the stress response. As they decline, cortisol regulation becomes less precise. Cortisol spikes higher in response to stressors that would previously have caused only a modest response. Recovery — the return to baseline — takes longer.\n\nThe consequences are far-reaching: increased abdominal fat storage (cortisol directly promotes visceral fat accumulation), muscle breakdown, disrupted sleep, worsened insulin resistance, suppressed immune function, anxiety and mood instability, and worsening of almost every other perimenopause symptom.\n\nCortisol and estrogen also have a feedback relationship. Low estrogen elevates cortisol. Elevated cortisol suppresses estrogen. This creates a cycle that can be difficult to break without addressing both.\n\nWhat helps: strength training (moderate intensity — not excessive), adequate sleep, stress management, reducing caffeine, eating regular balanced meals, magnesium, ashwagandha, and avoiding the chronic underfeeding that many women attempt in response to perimenopausal weight changes."},
+      {title:"Insulin", summary:"Insulin sensitivity declines in perimenopause. Understanding this changes how you eat.", detail:"Insulin is produced by the pancreas in response to rising blood sugar. Its job is to signal cells — primarily muscle, liver, and fat cells — to take up glucose from the blood.\n\nInsulin sensitivity refers to how well cells respond to this signal. High sensitivity means cells respond efficiently — blood sugar is cleared quickly and insulin levels remain low. Low sensitivity (insulin resistance) means cells are less responsive — blood sugar remains elevated, more insulin is required, and more glucose is ultimately stored as fat.\n\nEstrogen directly supports insulin sensitivity. It improves glucose uptake in muscle cells, reduces liver glucose production, and supports the function of insulin-producing beta cells in the pancreas. As estrogen declines in perimenopause, insulin sensitivity declines with it.\n\nThe result: the same foods that caused no issue at 35 now cause higher and more prolonged blood sugar spikes at 45. More glucose is stored as fat. Fat storage shifts toward the abdomen — visceral fat — which itself worsens insulin resistance, creating a compounding cycle.\n\nInsulin resistance also drives increased hunger, energy crashes, cravings for refined carbohydrates, and difficulty losing weight despite eating less.\n\nThe most powerful interventions: strength training (muscle tissue is the primary site of glucose disposal), walking after meals, adequate protein, reducing refined carbohydrates, sufficient sleep, and managing cortisol."},
+      {title:"Testosterone", summary:"Women have testosterone too. And its decline matters more than most people realise.", detail:"Testosterone is often thought of as a male hormone — but women produce it too, primarily in the ovaries and adrenal glands. In women, testosterone plays important roles in muscle mass, bone density, libido, energy, mood, and cognitive function.\n\nTestosterone levels in women peak in the mid-20s and decline gradually through the reproductive years. In perimenopause, particularly after the ovaries reduce their output, the decline accelerates.\n\nSymptoms of declining testosterone in women: reduced libido (one of the most commonly reported changes in perimenopause), fatigue and low energy, difficulty building or maintaining muscle mass despite training, reduced motivation and drive, low mood, and in some cases cognitive changes.\n\nTestosterone also works synergistically with estrogen for bone health and cardiovascular protection. Its decline contributes to the accelerated bone loss of the menopause transition.\n\nUnlike estrogen, testosterone is not yet licensed for women in most countries — though this is changing. Low-dose testosterone therapy (usually in gel form) is increasingly prescribed for women with significant symptoms and has good evidence for improving libido, energy, and wellbeing.\n\nNaturally, supporting testosterone production involves: adequate dietary fat (testosterone is synthesised from cholesterol), zinc and magnesium sufficiency, strength training (which acutely raises testosterone), adequate sleep, managing chronic stress, and maintaining healthy vitamin D levels."},
+      {title:"Thyroid Hormones", summary:"Thyroid disorders become significantly more common in perimenopause — and are frequently missed.", detail:"The thyroid gland produces two main hormones — T3 (triiodothyronine) and T4 (thyroxine) — that regulate metabolism, energy production, heart rate, body temperature, mood, and cognitive function. The pituitary gland regulates thyroid output via TSH (thyroid stimulating hormone).\n\nThe relationship between estrogen and thyroid function is complex. Estrogen affects thyroid hormone binding proteins — the proteins that carry thyroid hormones in the blood. As estrogen fluctuates in perimenopause, thyroid function can appear abnormal on tests even when the thyroid itself is functioning normally, and vice versa.\n\nMore significantly, autoimmune thyroid conditions — Hashimoto's thyroiditis (underactive thyroid) and Graves' disease (overactive thyroid) — are more common in women and often emerge or worsen during perimenopause, when immune regulation is altered by hormonal changes.\n\nHypothyroidism (underactive thyroid) symptoms overlap almost entirely with perimenopause: fatigue, weight gain, brain fog, depression, hair loss, cold intolerance, dry skin, and irregular periods. This overlap means thyroid conditions are frequently attributed to menopause and go untreated.\n\nIf you experience significant fatigue, weight gain despite good diet and exercise, persistent brain fog, hair thinning, or low mood in perimenopause — ask your doctor to test TSH, free T3, free T4, and thyroid antibodies. Standard TSH testing alone misses many thyroid conditions.\n\nSelenium, iodine, zinc, and vitamin D all support thyroid function. Avoiding goitrogenic foods in excess (raw cruciferous vegetables) may help in cases of established thyroid dysfunction."},
+    ]
+  },
+  {
+    group:"Symptoms Explained",
+    items:[
+      {title:"Hot Flashes & Night Sweats", summary:"Not random. A direct result of the estrogen-thermostat connection.", detail:"Hot flashes — sudden sensations of intense heat, flushing, and sweating — are the most recognised symptom of perimenopause. Up to 80% of women experience them. They can last from seconds to several minutes and may be accompanied by heart palpitations, anxiety, and chills.\n\nThe mechanism: estrogen plays a regulatory role in the hypothalamus — the brain region that controls body temperature. As estrogen fluctuates and declines, the hypothalamus's thermostat becomes hypersensitive. Minor increases in core body temperature — from a warm room, exercise, alcohol, caffeine, stress, or even digestion — trigger an exaggerated cooling response: blood vessels near the skin dilate, heat radiates outward, and sweating begins.\n\nNight sweats are hot flashes occurring during sleep. They often wake women at the 3–4am window when cortisol is rising — a time already vulnerable in perimenopause — and the combination of disrupted sleep and soaking sheets compounds the next day's symptoms significantly.\n\nWhat reduces hot flash frequency and severity: reducing triggers (alcohol, caffeine, spicy food, hot drinks, stress), maintaining a cool sleeping environment, magnesium glycinate before bed, phytoestrogens (flaxseed, soy), and for significant cases, hormone therapy — the most effective intervention available."},
+      {title:"Brain Fog", summary:"Real, physiological, and directly linked to estrogen. Not a sign of cognitive decline.", detail:"Brain fog in perimenopause — difficulty concentrating, word-finding problems, memory lapses, slowed thinking — is one of the most distressing symptoms because it feels so personal. Many women fear they are developing dementia.\n\nEstrogen has profound effects on the brain. It supports the production and function of neurotransmitters — particularly serotonin, dopamine, and acetylcholine. It promotes synaptic plasticity — the brain's ability to form and strengthen connections. It supports blood flow to the brain and has neuroprotective effects.\n\nAs estrogen declines in perimenopause, all of these functions are affected. The hippocampus — the brain region most involved in memory formation — is particularly estrogen-sensitive. Research using brain imaging shows measurable changes in brain activity and connectivity during the menopause transition.\n\nThe good news: the research also shows that for most women this is transitional. As the brain adapts to the new hormonal environment in postmenopause, cognitive function largely stabilises and often improves.\n\nWhat supports cognitive function in perimenopause: aerobic exercise (the most powerful intervention for brain health), strength training, adequate sleep, omega-3 fatty acids, B vitamins especially B12, managing cortisol, and for significant symptoms, hormone therapy has good evidence for cognitive support when started early in the transition."},
+      {title:"Sleep Disruption", summary:"The 3am wake. Why it happens and what is actually going on.", detail:"Sleep disruption is one of the most common and most impactful symptoms of perimenopause. It takes several forms: difficulty falling asleep, frequent waking, early morning waking (typically 3–4am), and non-restorative sleep — waking feeling unrefreshed despite adequate hours.\n\nThe hormonal mechanisms:\n\nProgesterone decline: progesterone has a direct sedative effect via GABA receptors — the same pathway as sleep medications. As it declines, the brain loses this natural sleep support. Falling asleep becomes harder. Sleep is lighter and more fragmented.\n\nEstrogen and temperature regulation: night sweats disrupt sleep architecture. Even if a woman doesn't fully wake, her sleep cycles are interrupted. Slow-wave sleep — the most restorative phase — is particularly vulnerable.\n\nCortisol dysregulation: the 3–4am waking is characteristic of perimenopause and is directly related to cortisol. Cortisol begins rising in the early morning hours. In a dysregulated system, this rise is earlier and sharper — pulling women out of sleep at 3am with a racing mind, anxiety, and an inability to return to sleep.\n\nAdrenaline sensitivity: declining estrogen increases sensitivity to adrenaline. Small stressors that would previously have been processed during sleep can trigger a full awakening.\n\nWhat helps: magnesium glycinate 300–400mg one hour before sleep (the most evidence-based supplement for perimenopause sleep), consistent sleep and wake times, cool dark room, no alcohol within 3 hours of sleep, progesterone therapy (the most effective intervention for sleep in perimenopause), and for 3am waking specifically — a small protein-based snack before bed can stabilise blood sugar through the night."},
+      {title:"Mood Changes", summary:"Anxiety, irritability, low mood — the serotonin-estrogen connection explained.", detail:"Mood changes in perimenopause are among the most disruptive and most stigmatised symptoms. Anxiety, irritability, low mood, emotional reactivity, and in some cases clinical depression are all significantly more common during the menopause transition.\n\nThese are not psychological weaknesses. They are neurobiological changes with clear hormonal mechanisms.\n\nEstrogen and serotonin: estrogen upregulates serotonin production and increases the sensitivity of serotonin receptors. As estrogen declines and fluctuates, serotonin activity fluctuates with it. The mood instability many women experience tracks closely with estrogen fluctuations — good days and bad days correlating not with external events but with hormonal shifts.\n\nEstrogen and dopamine: estrogen also supports dopamine function — the neurotransmitter involved in motivation, reward, and pleasure. Declining estrogen can reduce the sense of drive and satisfaction that previously came naturally.\n\nProgesterone and GABA: progesterone metabolites support GABA — the brain's primary calming neurotransmitter. Progesterone decline withdraws this support, contributing directly to anxiety and irritability.\n\nThe HPA axis: chronic cortisol dysregulation in perimenopause affects the same brain circuits involved in depression and anxiety.\n\nThis does not mean every woman with perimenopause mood changes needs antidepressants — though SSRIs are sometimes appropriate and helpful. For many women, the primary intervention should be hormonal: addressing the estrogen and progesterone decline that is driving the neurobiological changes.\n\nIf you are experiencing significant mood changes in perimenopause, please speak with your doctor — ideally one with specific menopause expertise. These symptoms are treatable."},
+      {title:"Weight Changes", summary:"Why the body changes shape in perimenopause — and what actually helps.", detail:"Weight gain and body composition changes are among the most common concerns in perimenopause — and among the most frustrating, because the same approaches that worked before often stop working.\n\nWhat is actually changing:\n\nFat distribution shifts: estrogen influences where fat is stored. During reproductive years, estrogen promotes fat storage in the hips, thighs, and breasts — the gynoid or pear shape. As estrogen declines, fat storage shifts toward the abdomen and visceral fat — the android or apple shape. This shift happens even without weight gain — the body is redistributing.\n\nMuscle loss accelerates: from around age 35, muscle mass declines at approximately 1% per year without strength training. In perimenopause, the rate accelerates. Since muscle is metabolically active tissue — burning calories at rest — its loss contributes to metabolic slowing.\n\nInsulin resistance increases: as covered in the insulin section, cells become less efficient at using glucose, more is stored as fat, and hunger and cravings increase.\n\nCortisol promotes visceral fat: chronic cortisol elevation directly promotes fat storage around the organs.\n\nWhat actually helps: strength training is the single most effective intervention — it preserves and builds muscle, improves insulin sensitivity, and counteracts cortisol's effects. Adequate protein supports muscle. Not drastically restricting calories — this signals stress, raises cortisol, and accelerates muscle loss. Prioritising sleep. Managing stress. And accepting that body composition will change, while focusing on what the body can do rather than solely how it looks."},
+    ]
+  },
+];
+
+function HormonesTab(){
+  const [openItem,setOpenItem]=useState(null);
+  return(
+    <div>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:26,fontWeight:500,color:C.burgundy,marginBottom:4}}>Hormones</p>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.inkMid,marginBottom:6,lineHeight:1.8,maxWidth:520}}>Understanding what is happening in your body — not as a mystery, but as biology you can work with.</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:11,color:C.blushDim,marginBottom:28}}>This information is educational. Always speak with a qualified physician about your personal hormonal health.</p>
+      {hormoneSections.map(section=>(
+        <div key={section.group} style={{marginBottom:28}}>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:3,textTransform:"uppercase",color:C.muted,marginBottom:10,paddingBottom:8,borderBottom:`1px solid ${C.border}`}}>{section.group}</p>
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            {section.items.map(item=>{
+              const key=`${section.group}-${item.title}`;
+              const isOpen=openItem===key;
+              return(
+                <div key={item.title} style={{background:C.surface,border:`1px solid ${isOpen?C.burgundy:C.border}`,borderLeft:`3px solid ${isOpen?C.burgundy:C.blushDim}`,borderRadius:4,overflow:"hidden",transition:"border-color .2s",boxShadow:"0 1px 6px rgba(107,30,53,0.03)"}}>
+                  <div onClick={()=>setOpenItem(isOpen?null:key)} style={{padding:"16px 18px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+                    <div style={{flex:1}}>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:C.burgundy,marginBottom:4}}>{item.title}</p>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,lineHeight:1.6}}>{item.summary}</p>
+                    </div>
+                    <span style={{color:C.mutedLight,fontSize:14,display:"inline-block",transition:"transform .2s",transform:isOpen?"rotate(90deg)":"rotate(0deg)",flexShrink:0,marginTop:2}}>›</span>
+                  </div>
+                  {isOpen&&(
+                    <div style={{borderTop:`1px solid ${C.blushLight}`,padding:"16px 18px 20px"}}>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,lineHeight:1.95,whiteSpace:"pre-line",marginBottom:item.sources?14:0}}>{item.detail}</p>
+                      {item.sources&&(
+                        <div style={{background:C.bgDeep,borderRadius:3,padding:"12px 14px",borderLeft:`2px solid ${C.gold}`}}>
+                          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2,textTransform:"uppercase",color:C.gold,marginBottom:6}}>Good sources</p>
+                          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.inkMid,lineHeight:1.8}}>{item.sources}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Nutrition Tab ── */
+const nutritionSections = [
+  {
+    group:"Macronutrients",
+    items:[
+      {title:"Protein",sources:"Eggs · chicken · turkey · salmon · tuna · Greek yoghurt · cottage cheese · lentils · chickpeas · tofu · edamame · protein powder", summary:"The most important macronutrient after 40. Not optional.", detail:"After 45, anabolic resistance means your body is less efficient at converting protein into muscle. You need significantly more than you probably think.\n\nTarget: 1.6–2g per kg of bodyweight daily. For a 70kg woman that is 112–140g per day — spread across meals, not eaten all at once.\n\nBest sources: eggs, chicken, turkey, beef, salmon, tuna, Greek yoghurt, cottage cheese, lentils, chickpeas, tofu, tempeh, edamame.\n\nTiming matters: aim for 30–40g at breakfast — most women eat far too little protein in the morning and this is when it matters most for muscle synthesis. Post-workout protein within 2 hours of training supports recovery and adaptation.\n\nProtein also keeps you fuller for longer, supports blood sugar balance, and has a higher thermic effect than carbs or fat — meaning your body burns more calories digesting it."},
+      {title:"Carbohydrates",sources:"Oats · sweet potato · quinoa · brown rice · whole grain bread · lentils · chickpeas · berries · banana · apple", summary:"Not the enemy. The right carbs at the right time are essential.", detail:"Carbohydrates are your body's primary fuel source — for your brain, your training, and your hormones. Cutting them completely is not the answer, especially in perimenopause when cortisol is already elevated. Very low carb diets can raise cortisol further and disrupt thyroid function.\n\nThe key distinction is quality and timing.\n\nGood carbs: oats, sweet potato, quinoa, brown rice, whole grain bread, legumes, fruit, vegetables. These are rich in fibre, release energy slowly, and support gut health and hormonal balance.\n\nLess good carbs: white bread, white pasta, pastries, sugary cereals, biscuits, sweets, fizzy drinks. These spike blood sugar rapidly, trigger insulin release, promote fat storage particularly around the abdomen, and worsen energy crashes.\n\nTiming: eating carbohydrates around training — before and after — is when they are most beneficial. Your muscles use them for fuel and recovery. Eating large amounts of refined carbs in the evening when you are sedentary is when they are most likely to be stored as fat.\n\nCarbs also support serotonin production — which is why cutting them completely often worsens mood and sleep in perimenopausal women."},
+      {title:"Fats",sources:"Salmon · mackerel · sardines · avocado · olive oil · walnuts · almonds · flaxseed · eggs · full-fat Greek yoghurt", summary:"Essential — not something to fear. The right fats are profoundly anti-inflammatory.", detail:"Fat is not the enemy it was once considered. Dietary fat is essential for hormone production, brain health, joint lubrication, and the absorption of fat-soluble vitamins A, D, E, and K.\n\nIn perimenopause, choosing the right fats becomes more important because estrogen decline increases systemic inflammation. Anti-inflammatory fats actively work against this.\n\nBest fats: oily fish (salmon, mackerel, sardines, anchovies), avocado, olive oil, nuts, seeds, eggs, full-fat dairy in moderation.\n\nOmega-3 fatty acids — found in oily fish, flaxseed, and walnuts — are particularly important. They reduce inflammation, support brain health, protect cardiovascular function, and have emerging evidence for managing hot flashes.\n\nFats to reduce: seed oils high in omega-6 (sunflower, vegetable, corn oil) — these promote inflammation when consumed in excess. Ultra-processed foods, fried food, margarine, and trans fats.\n\nDo not be afraid of saturated fat from whole food sources like eggs and full-fat dairy. The evidence has shifted significantly — these foods in moderation are not the cardiovascular risk they were once thought to be."},
+    ]
+  },
+  {
+    group:"Food Groups",
+    items:[
+      {title:"Dairy",sources:"Greek yoghurt · kefir · full-fat cheese · cottage cheese · milk · skyr · butter · aged parmesan", summary:"Nutritious for many — but tolerance often changes in perimenopause.", detail:"Dairy is an excellent source of protein, calcium, vitamin D, and phosphorus — all important for bone density which declines sharply after menopause. Full-fat dairy in particular contains vitamin K2 and fat-soluble vitamins that support hormone health.\n\nHowever, lactose intolerance often develops or worsens in perimenopause as estrogen decline affects gut enzyme production including lactase — the enzyme that digests lactose. Women who had no issue with dairy their whole lives may suddenly find it causes bloating, gas, or digestive discomfort.\n\nIf you tolerate dairy well: Greek yoghurt, kefir, full-fat cheese, and milk are all valuable. Kefir in particular is a powerful probiotic that supports gut health.\n\nIf you are lactose sensitive: hard aged cheeses are often lower in lactose and better tolerated. Lactose-free versions of milk and yoghurt retain the nutritional benefits. Plant-based alternatives vary significantly — oat milk is higher in carbohydrates, almond milk is low in protein. Fortified soy milk is nutritionally closest to dairy.\n\nDo not assume you need to eliminate dairy entirely without testing it. Many women do well with fermented dairy (yoghurt, kefir, cheese) even when they react to milk."},
+      {title:"Oils",sources:"Extra virgin olive oil · avocado oil · coconut oil · ghee · butter", summary:"What you cook with matters as much as what you eat.", detail:"Not all oils are equal. The type of fat an oil contains, its smoke point, and how it behaves when heated all affect how it impacts your health.\n\nBest for cooking: extra virgin olive oil (low to medium heat), coconut oil (medium heat), avocado oil (high heat), butter and ghee (medium to high heat). These are stable when heated and anti-inflammatory.\n\nBest for cold use: extra virgin olive oil on salads and vegetables — this is where its polyphenols are most active and protective.\n\nOils to reduce: vegetable oil, sunflower oil, corn oil, canola oil, soybean oil. These are high in omega-6 fatty acids which promote inflammation when they dominate the diet. They also oxidise easily when heated, creating harmful compounds.\n\nNever reuse cooking oils — reheated oils oxidise further and increase inflammatory compounds significantly."},
+      {title:"Nuts & Seeds",sources:"Walnuts · almonds · Brazil nuts · pumpkin seeds · flaxseed · sesame seeds · tahini · chia seeds · sunflower seeds", summary:"Small in size, significant in impact — especially for hormonal health.", detail:"Nuts and seeds are some of the most nutrient-dense foods available. They provide healthy fats, protein, fibre, minerals, and in several cases, compounds that directly support hormonal health.\n\nFlaxseed (linseeds): the richest plant source of lignans — phytoestrogens that may help balance estrogen levels in perimenopause. Also high in omega-3. Ground flaxseed is better absorbed than whole. Add to yoghurt, smoothies, or porridge. 1–2 tablespoons daily.\n\nPumpkin seeds: exceptionally high in zinc, magnesium, and iron — all critical in perimenopause. Also contain phytoestrogens. Eat a small handful daily.\n\nWalnuts: the best nut source of omega-3. Also support brain health and reduce inflammation.\n\nAlmonds: high in calcium, vitamin E, and magnesium. Support bone density and sleep quality.\n\nBrazil nuts: one to two daily provides your full daily selenium requirement — essential for thyroid function which is commonly disrupted in perimenopause.\n\nSesame seeds and tahini: high in calcium and lignans. Excellent dairy-free calcium source.\n\nPortions matter — nuts are calorie-dense. A small handful (30g) daily is the evidence-based sweet spot."},
+      {title:"Fibre",sources:"Oats · lentils · chickpeas · broccoli · leafy greens · berries · apples with skin · quinoa · flaxseed · chia seeds", summary:"Critical for gut health, hormonal balance, and blood sugar control.", detail:"Fibre does far more than support digestion. In perimenopause it plays a specific and important hormonal role.\n\nEstrogen that has been used by the body is processed by the liver and then excreted through the gut. When the gut microbiome is disrupted or fibre intake is low, some of this processed estrogen gets reabsorbed back into the bloodstream rather than eliminated. This can worsen hormonal imbalance.\n\nFibre feeds beneficial gut bacteria that produce short-chain fatty acids — which reduce inflammation, support immune function, and protect the gut lining.\n\nTarget: 25–35g of fibre daily. Most women eat significantly less than this.\n\nBest sources: vegetables (especially leafy greens, broccoli, Brussels sprouts), legumes (lentils, chickpeas, black beans), whole grains (oats, quinoa, brown rice), fruit (berries, apples, pears with skin), nuts and seeds.\n\nIncrease fibre gradually and always increase water intake alongside it to avoid digestive discomfort."},
+      {title:"Anti-Inflammatory Foods",sources:"Salmon · mackerel · blueberries · spinach · kale · turmeric · ginger · extra virgin olive oil · green tea · dark chocolate 70%+", summary:"Chronic inflammation rises in menopause. These foods actively work against it.", detail:"Chronic low-grade inflammation is a hallmark of the menopause transition. It contributes to joint pain, fatigue, brain fog, weight gain, cardiovascular risk, and worsening of menopause symptoms.\n\nCertain foods are genuinely anti-inflammatory and their regular inclusion makes a measurable difference.\n\nMost powerful anti-inflammatory foods: oily fish (salmon, mackerel, sardines — 2–3 times per week), berries (blueberries, raspberries, strawberries — daily if possible), leafy green vegetables (spinach, kale, rocket — daily), turmeric with black pepper (curcumin is bioavailable only with piperine), extra virgin olive oil, green tea, dark chocolate (70%+), ginger.\n\nFoods that increase inflammation: sugar and refined carbohydrates, seed oils, ultra-processed foods, alcohol, trans fats, and excess red meat from poor-quality sources.\n\nThe simplest approach: eat a wide variety of colourful vegetables and fruit daily, choose oily fish over white fish several times a week, and reduce processed food as much as practically possible."},
+      {title:"Phytoestrogens",sources:"Tofu · tempeh · edamame · miso · flaxseed · lentils · chickpeas · oats · broccoli · cauliflower", summary:"Plant compounds that mimic estrogen weakly — and may ease the transition.", detail:"Phytoestrogens are plant-based compounds that bind to estrogen receptors in the body and exert a weak estrogen-like effect. As natural estrogen declines in perimenopause, these compounds may help moderate symptoms.\n\nThe evidence is genuinely interesting. Studies show that populations who eat high amounts of phytoestrogens — particularly Asian women with high soy consumption — experience significantly fewer and less severe menopausal symptoms.\n\nMain food sources:\n\nSoy: tofu, tempeh, edamame, miso, soy milk. Tempeh is particularly valuable as a fermented source with added probiotic benefits.\n\nFlaxseed: as discussed above — the richest plant source of lignans.\n\nLegumes: lentils, chickpeas, kidney beans all contain phytoestrogens.\n\nWhole grains: oats, barley, rye.\n\nVegetables: broccoli, cauliflower, Brussels sprouts.\n\nPhytoestrogens are not the same as synthetic estrogen and the evidence suggests they are safe for most women including those with a history of estrogen-sensitive conditions — but always discuss with your physician if you have concerns."},
+    ]
+  },
+  {
+    group:"What To Be Mindful Of",
+    items:[
+      {title:"Sugar & Refined Carbohydrates",sources:"Choose instead: oats · sweet potato · brown rice · fruit · dark chocolate · natural yoghurt with berries", summary:"Insulin resistance increases significantly in perimenopause. Sugar hits differently now.", detail:"One of the most significant metabolic changes in perimenopause is declining insulin sensitivity. Your cells become less responsive to insulin — the hormone that moves glucose from your blood into your cells for energy.\n\nThe result: blood sugar spikes higher, stays elevated longer, and more of it is stored as fat — particularly visceral fat around the abdomen. This is why many women notice abdominal weight gain in perimenopause even without changing their diet.\n\nHigh blood sugar also triggers cortisol release, worsens hot flashes, disrupts sleep, promotes inflammation, and drives energy crashes that create cravings for more sugar.\n\nThis is not about eliminating sugar entirely. It is about understanding that the same foods affect you differently now and making informed choices.\n\nPractical strategies: eat protein and fat before carbohydrates in a meal — this significantly blunts the blood sugar spike. Never eat refined carbohydrates alone. Choose whole food carbohydrates over refined ones. Reduce ultra-processed foods, sweets, sugary drinks, and alcohol.\n\nA 10-minute walk after eating also significantly improves glucose uptake — one of the simplest and most evidence-backed interventions available."},
+      {title:"Alcohol",sources:"If drinking: red wine in moderation · always with food · avoid within 3 hours of sleep", summary:"Estrogen decline changes how alcohol is processed. Less is more now.", detail:"Alcohol affects women in perimenopause differently than it did in their 30s — and this is physiological, not a matter of tolerance or willpower.\n\nEstrogen helps metabolise alcohol. As estrogen declines, alcohol is processed more slowly, reaching higher blood concentrations with the same amount consumed. The result: stronger effects, worse hangovers, more disrupted sleep.\n\nAlcohol specifically in perimenopause: directly triggers hot flashes in many women, significantly disrupts sleep architecture (you fall asleep faster but wake in the night — particularly common), elevates cortisol the following day, is estrogenic in excess which paradoxically worsens hormonal imbalance, contributes to liver burden which affects hormone processing, and provides empty calories that worsen body composition.\n\nThis is not about never drinking. It is about understanding why two glasses of wine now feels like it used to feel like four, and why the night sweats afterwards are not a coincidence.\n\nIf you drink: red wine contains resveratrol which has some anti-inflammatory properties. Keeping to 1–2 drinks maximum, not daily, and never within 3 hours of sleep makes a significant difference to symptoms."},
+      {title:"Caffeine",sources:"Alternatives: green tea · matcha · herbal teas · chicory coffee · golden milk", summary:"Timing matters more now than ever. Caffeine and cortisol are closely linked.", detail:"Caffeine stimulates cortisol production. In perimenopause, cortisol is already dysregulated — it spikes higher and recovers more slowly. Caffeine compounds this.\n\nThe cortisol awakening response — a natural spike in cortisol in the first hour after waking — is already high in the morning. Adding caffeine during this window amplifies it further, which can increase anxiety, worsen hot flashes, and contribute to adrenal fatigue over time.\n\nCaffeine also has a half-life of 5–7 hours. A coffee at 2pm still has half its caffeine active at 7pm, affecting sleep quality even if you fall asleep without difficulty.\n\nPractical approach: delay your first coffee by 60–90 minutes after waking — let the natural cortisol awakening response complete first. Avoid caffeine after midday if you are experiencing sleep disruption. Green tea is a gentler alternative — it contains L-theanine which moderates caffeine's stimulant effect.\n\nFor women with significant anxiety or adrenal fatigue in perimenopause, reducing caffeine intake is often one of the most impactful single changes they can make."},
+      {title:"Hydration",sources:"Water · herbal teas · coconut water · cucumber water · broth · watermelon · cucumber", summary:"Estrogen helps maintain fluid balance. As it declines, dehydration becomes more common.", detail:"Estrogen plays a role in fluid regulation throughout the body. As it declines, many women become chronically mildly dehydrated without realising it — and the symptoms of mild dehydration closely mirror menopause symptoms: fatigue, brain fog, headaches, joint stiffness, dry skin.\n\nHot flashes and night sweats also cause significant fluid loss that many women do not compensate for.\n\nTarget: 2–2.5 litres of water daily minimum. More on training days and in hot weather.\n\nPractical strategies: start each morning with a large glass of water before coffee. Keep water visible — you drink more of what you see. Herbal teas count. Coconut water provides electrolytes and is excellent after sweating.\n\nHydration also affects joint lubrication — many women experience increased joint pain in perimenopause, and dehydration makes this significantly worse.\n\nA simple check: your urine should be pale yellow. Dark yellow or amber means you are dehydrated."},
+    ]
+  },
+  {
+    group:"Hormonal Nutrition",
+    items:[
+      {title:"Metabolism After 40",sources:"Support with: lean protein at every meal · strength training · oily fish · leafy greens · berries", summary:"What actually changes — and what actually helps.", detail:"The narrative that metabolism simply 'slows down' after 40 is an oversimplification. What actually changes is more specific and more actionable.\n\nWhat changes: muscle mass declines (sarcopenia) which reduces resting metabolic rate — muscle burns more calories at rest than fat. Insulin sensitivity decreases. Thyroid function can become less efficient. Sleep disruption affects leptin and ghrelin — the hormones that regulate hunger and satiety.\n\nWhat does NOT change as much as believed: the fundamental metabolic processes. A 2021 study in Science found that metabolism is largely stable from ages 20–60, and the changes attributed to 'slowing metabolism' are primarily driven by declining muscle mass.\n\nWhat actually helps: strength training to preserve and build muscle — this is the single most powerful metabolic intervention available. Adequate protein to support muscle. Sufficient sleep. Managing cortisol. Not drastically restricting calories — this signals scarcity to the body, slows metabolism further, and accelerates muscle loss.\n\nThe answer is not eating less. It is eating better and moving with more intelligence."},
+      {title:"Insulin Sensitivity",sources:"Best foods: leafy greens · berries · oily fish · nuts · whole grains · apple cider vinegar · cinnamon", summary:"One of the most important health markers in perimenopause — and you can improve it.", detail:"Insulin sensitivity refers to how well your cells respond to insulin and absorb glucose from the blood. In perimenopause, insulin sensitivity declines — meaning your cells become more resistant to insulin's signal.\n\nThe consequences: higher blood sugar after meals, more fat storage (particularly abdominal), increased cardiovascular risk, worsening energy and mood, and increased inflammation.\n\nThe good news: insulin sensitivity responds very well to lifestyle interventions.\n\nMost powerful interventions: strength training (muscle tissue is the primary site of glucose disposal — more muscle means better insulin sensitivity), walking after meals (a 10-minute walk post-meal reduces glucose spikes by up to 30%), reducing refined carbohydrates and sugar, adequate sleep (even one night of poor sleep significantly impairs insulin sensitivity), and reducing chronic stress.\n\nFoods that support insulin sensitivity: apple cider vinegar before meals, cinnamon, berries, leafy greens, oily fish, nuts, and whole grains.\n\nThis is one of the most important health markers of this life phase — and almost entirely within your influence."},
+      {title:"Cortisol & Food",sources:"Regulating foods: magnesium-rich dark leafy greens · avocado · pumpkin seeds · dark chocolate · oily fish · oats", summary:"What you eat directly affects your stress hormone. And vice versa.", detail:"Cortisol is your primary stress hormone. In perimenopause it becomes dysregulated — spiking higher in response to stress and recovering more slowly. This affects everything: sleep, mood, body composition, inflammation, and muscle.\n\nWhat raises cortisol through food: skipping meals (the body interprets low blood sugar as a stress signal), very low calorie dieting, excessive caffeine, high sugar intake and the subsequent crash, alcohol, and ultra-processed food.\n\nWhat helps regulate cortisol through food: eating regular balanced meals — do not skip breakfast, consistent blood sugar is one of the most effective cortisol regulators. Magnesium-rich foods (dark leafy greens, pumpkin seeds, dark chocolate, avocado). Adaptogenic foods and herbs — ashwagandha, maca, holy basil. Oily fish for omega-3 which directly reduces cortisol response. Dark chocolate (70%+) which contains compounds that reduce cortisol.\n\nThe cortisol-fat storage connection: chronically elevated cortisol drives visceral fat storage — the dangerous fat around internal organs. Managing cortisol through food, sleep, and stress is as important for body composition as any training programme."},
+      {title:"Gut-Hormone Connection",sources:"Probiotic foods: kefir · yoghurt · sauerkraut · kimchi · miso · tempeh · sourdough bread", summary:"Your gut and your hormones are in constant conversation.", detail:"The gut microbiome — the trillions of bacteria living in your digestive system — plays a profound role in hormonal health that most people are completely unaware of.\n\nThe estrobolome: a specific collection of gut bacteria responsible for metabolising estrogen. When the estrobolome is healthy and diverse, it processes and eliminates used estrogen efficiently. When it is disrupted — through poor diet, antibiotics, stress, or low fibre intake — processed estrogen gets reabsorbed back into the bloodstream rather than eliminated. This can worsen the hormonal fluctuations of perimenopause significantly.\n\nThe gut-brain axis: gut bacteria produce around 90% of your body's serotonin. Disrupted gut health directly impacts mood, anxiety, and cognitive function — all commonly affected in perimenopause.\n\nWhat disrupts the microbiome: antibiotics, ultra-processed food, low fibre, high sugar, chronic stress, alcohol, and low sleep.\n\nWhat supports it: high fibre intake, fermented foods (yoghurt, kefir, sauerkraut, kimchi, miso, tempeh), diverse plant-based foods — aim for 30 different plants per week, probiotic supplementation, and reducing the disruptors above."},
+      {title:"Bone Health Nutrition",sources:"Key foods: dairy or fortified alternatives · sardines with bones · kale · almonds · tahini · eggs · oily fish", summary:"The first five years after menopause are the most critical for bone density.", detail:"Estrogen has a protective effect on bone. As it declines in perimenopause, bone resorption — the breaking down of bone — accelerates significantly. The first five years after menopause see the most rapid bone density loss of a woman's lifetime.\n\nStrength training is the most powerful intervention (bone responds to load by becoming denser). But nutrition is the essential foundation.\n\nCalcium: 1,000–1,200mg daily. Best food sources: dairy, fortified plant milks, sardines with bones, almonds, kale, broccoli, tahini. Calcium supplements without vitamin D and K2 may do more harm than good — always pair them.\n\nVitamin D3: essential for calcium absorption. Without it, dietary calcium cannot be used effectively. Most women in northern latitudes are deficient. Test your levels. Supplement 2,000–5,000 IU with K2.\n\nVitamin K2: directs calcium into bones rather than arteries. Found in fermented foods, aged cheese, egg yolks, and supplements.\n\nMagnesium: works with calcium for bone health. Found in leafy greens, pumpkin seeds, almonds, and dark chocolate.\n\nProtein: often overlooked for bone health. Bone is approximately 50% protein by volume. Adequate protein is essential for bone matrix formation."},
+      {title:"Blood Sugar Balance",sources:"Balanced plate examples: eggs + vegetables · chicken + quinoa + greens · salmon + sweet potato · Greek yoghurt + berries + nuts", summary:"Not a diet. A daily practice that makes everything else work better.", detail:"Blood sugar balance is not about counting carbs or following a strict diet. It is about understanding how food affects your energy, mood, hunger, and hormones — and making simple adjustments that have a significant cumulative effect.\n\nThe principles are straightforward:\n\nEat protein first: starting a meal with protein significantly blunts the blood sugar spike from the carbohydrates that follow.\n\nNever eat carbohydrates alone: always pair them with protein, fat, or fibre. A piece of fruit with nuts. Toast with eggs. Rice with chicken and vegetables.\n\nEat in this order: vegetables and fibre first, protein second, carbohydrates and fats last. Studies show this sequence reduces glucose spikes by up to 75%.\n\nDo not skip meals: going more than 4–5 hours without eating causes blood sugar to drop, triggering cortisol release and intense cravings. Regular balanced meals prevent this cycle.\n\nMove after eating: a 10-minute walk after meals is one of the most effective glucose management tools available. The muscles take up glucose directly and the spike is significantly reduced.\n\nSavoury breakfasts over sweet: starting the day with protein and vegetables rather than cereal, toast, or fruit sets a stable blood sugar foundation for the entire day."},
+    ]
+  },
+  {
+    group:"Intolerances in Perimenopause",
+    color:C.rose,
+    items:[
+      {title:"Lactose Intolerance",sources:"Better tolerated: hard cheese · Greek yoghurt · kefir · lactose-free milk · fortified oat milk · fortified soy milk", summary:"Often develops or worsens in perimenopause — even if dairy was never a problem before.", detail:"Lactose is the sugar found in milk and most dairy products. It is digested by an enzyme called lactase. Many people produce less lactase as they age — and estrogen decline in perimenopause appears to further reduce lactase production and alter gut function, leading to new or worsened lactose intolerance.\n\nSymptoms typically appear 30 minutes to 2 hours after consuming lactose: bloating, gas, abdominal cramping, and diarrhoea. The severity varies — some women react strongly to any dairy, others only to large amounts.\n\nNot all dairy is equally problematic: hard aged cheeses (parmesan, cheddar, Swiss) are very low in lactose and often well tolerated. Greek yoghurt and kefir are lower in lactose due to fermentation and the live cultures help digest what remains. Butter is almost lactose-free. Milk and soft cheeses are highest in lactose.\n\nIf you suspect lactose intolerance: try an elimination for 3–4 weeks, then reintroduce dairy foods one at a time starting with the lowest-lactose options. Lactase enzyme supplements taken before dairy-containing meals can also help.\n\nDo not assume all your digestive symptoms are lactose — gluten sensitivity and histamine intolerance can cause overlapping symptoms and all three often occur together in perimenopause."},
+      {title:"Gluten Sensitivity",sources:"Gluten-free alternatives: rice · quinoa · oats (certified GF) · buckwheat · sweet potato · lentils · corn", summary:"Intestinal permeability increases in perimenopause — new sensitivities can emerge.", detail:"Gluten is a protein found in wheat, barley, rye, and most oats. Coeliac disease is a serious autoimmune condition requiring strict elimination. Non-coeliac gluten sensitivity is a different condition — less severe, but increasingly recognised as a real and common issue.\n\nIn perimenopause, intestinal permeability — the integrity of the gut lining — is affected by hormonal changes, chronic stress, and microbiome disruption. A more permeable gut lining allows larger food particles, including gluten proteins, to pass into the bloodstream and trigger immune responses. This is sometimes called 'leaky gut'.\n\nThe result: women who ate gluten without issue for decades suddenly find it causes bloating, fatigue, brain fog, joint pain, or skin issues. These symptoms can easily be attributed to menopause when gluten is actually contributing significantly.\n\nIf you suspect gluten sensitivity: eliminate gluten completely for 6–8 weeks and note any changes in energy, digestion, brain fog, joint pain, and skin. Then reintroduce and observe. This is not a test for coeliac disease — if you suspect coeliac, see your doctor before eliminating gluten as the diagnostic tests require active consumption.\n\nGluten-free whole food alternatives: rice, quinoa, oats (certified gluten-free), buckwheat, millet, sweet potato, lentils. Focus on naturally gluten-free whole foods rather than processed gluten-free products which are often highly refined."},
+      {title:"Histamine Intolerance",sources:"Low histamine choices: fresh meat · fresh fish · eggs · most fresh vegetables · rice · quinoa · fresh herbs · apples · pears", summary:"The estrogen-histamine connection — almost never discussed, very commonly experienced.", detail:"Histamine intolerance is one of the least known but most commonly experienced issues in perimenopause — and the connection to estrogen is direct and well established.\n\nEstrogen stimulates the release of histamine. Histamine in turn stimulates the production of more estrogen. In perimenopause, as estrogen levels fluctuate wildly, histamine levels fluctuate with them. This creates a cycle of histamine excess that many women experience as new and confusing symptoms.\n\nSymptoms of histamine intolerance: headaches and migraines, flushing and skin redness, hives or itching, nasal congestion, heart palpitations, anxiety, fatigue, digestive issues, and worsening hot flashes. Many of these overlap directly with menopause symptoms — which is why histamine intolerance is so frequently missed.\n\nHigh histamine foods: aged and fermented foods (wine, beer, aged cheese, sauerkraut, kimchi, vinegar), cured meats (salami, bacon, ham), smoked fish, leftover cooked food (histamine increases as food sits), tomatoes, spinach, avocado, strawberries, citrus fruits, chocolate.\n\nLow histamine alternatives: fresh meat and fish (cooked and eaten immediately), eggs, most fresh vegetables except those listed above, most fresh fruit except citrus, rice, quinoa, fresh herbs.\n\nSupports histamine breakdown: vitamin C, vitamin B6, copper, and the enzyme DAO (diamine oxidase) which degrades histamine in the gut. DAO supplements are available and can be helpful for women with significant histamine intolerance.\n\nIf you suspect histamine intolerance: keep a food and symptom diary. The pattern between high-histamine foods and symptoms often becomes clear within 2–3 weeks."},
+    ]
+  },
+];
+
+function NutritionTab(){
+  const [openItem,setOpenItem]=useState(null);
+  return(
+    <div>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:26,fontWeight:500,color:C.burgundy,marginBottom:4}}>Nutrition</p>
+      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.inkMid,marginBottom:6,lineHeight:1.8,maxWidth:520}}>Understanding food in this phase of life — not rules, not restriction. Just the knowledge to make informed choices for your body right now.</p>
+      <p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:11,color:C.blushDim,marginBottom:28}}>Always consult your physician or a registered dietitian for personal medical nutritional advice.</p>
+      {nutritionSections.map(section=>(
+        <div key={section.group} style={{marginBottom:28}}>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:3,textTransform:"uppercase",color:section.color||C.muted,marginBottom:10,paddingBottom:8,borderBottom:`1px solid ${C.border}`}}>{section.group}</p>
+          <div style={{display:"flex",flexDirection:"column",gap:4}}>
+            {section.items.map(item=>{
+              const key=`${section.group}-${item.title}`;
+              const isOpen=openItem===key;
+              return(
+                <div key={item.title} style={{background:C.surface,border:`1px solid ${isOpen?C.burgundy:C.border}`,borderLeft:`3px solid ${isOpen?C.burgundy:section.color||C.blushDim}`,borderRadius:4,overflow:"hidden",transition:"border-color .2s",boxShadow:"0 1px 6px rgba(107,30,53,0.03)"}}>
+                  <div onClick={()=>setOpenItem(isOpen?null:key)} style={{padding:"16px 18px",cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+                    <div style={{flex:1}}>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:15,fontWeight:700,color:C.burgundy,marginBottom:4}}>{item.title}</p>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,lineHeight:1.6}}>{item.summary}</p>
+                    </div>
+                    <span style={{color:C.mutedLight,fontSize:14,display:"inline-block",transition:"transform .2s",transform:isOpen?"rotate(90deg)":"rotate(0deg)",flexShrink:0,marginTop:2}}>›</span>
+                  </div>
+                  {isOpen&&(
+                    <div style={{borderTop:`1px solid ${C.blushLight}`,padding:"16px 18px 20px"}}>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:13,color:C.muted,lineHeight:1.95,whiteSpace:"pre-line"}}>{item.detail}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ── Number Input ── */
+
+/* ── App ── */
+export default function App(){
+  const [name,setName]         = useState(loadName);
+  const [pulse,setPulse]       = useState(loadPulse);
+  const [showPulse,setShowP]   = useState(!loadPulse());
+  const [tab,setTab]           = useState("today");
+  const [selected,setSelected] = useState(strengthExercises[0]);
+  const [sets,setSets]         = useState("");
+  const [reps,setReps]         = useState("");
+  const [weight,setWeight]     = useState("");
+  const [notes,setNotes]       = useState("");
+  const [logs,setLogs]         = useState(loadLogs);
+  const [toast,setToast]       = useState(null);
+  const [confirmClear,setCC]   = useState(false);
+  const [cardioOpen,setCardioOpen] = useState(null);
+
+  useEffect(()=>{try{localStorage.setItem(SK,JSON.stringify(logs));}catch{}},[logs]);
+  const totalSets=useMemo(()=>logs.reduce((s,l)=>s+Number(l.sets||0),0),[logs]);
+  const totalVol =useMemo(()=>logs.reduce((s,l)=>s+Number(l.sets||0)*Number(l.reps||0)*Number(l.weight||0),0),[logs]);
+
+  const saveLog=()=>{
+    if(!sets||!reps){setToast("Please add sets and reps.");return;}
+    setLogs(prev=>[{id:Date.now().toString(),date:new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}),exercise:selected.name,sets,reps,weight,notes},...prev]);
+    setSets("");setReps("");setWeight("");setNotes("");
+    setToast(`${selected.name} recorded.`);
+  };
+
+  if(!name)return <Welcome onComplete={n=>{setName(n);}} />;
+  if(showPulse)return <MorningPulse onComplete={a=>{setPulse(a);setShowP(false);}} existing={pulse}/>;
+
+  const editName=(newName)=>{
+    try{localStorage.setItem(NK,newName);}catch{}
+    setName(newName);
+  };
+
+  const TABS=[["today","Today"],["cycle","Cycle"],["plan","Plan"],["nutrition","Nutrition"],["supplements","Supplements"],["hormones","Hormones"],["calm","Calm"],["history","History"]];
+
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,fontFamily:"Georgia,serif"}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Sans:wght@300;400;500;600&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;}
+        input,textarea,select{font-family:'DM Sans',sans-serif;}
+        input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;}
+        input:focus,textarea:focus,select:focus{outline:none;}
+        @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
+        @keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+        .exrow:hover{background:#f9f0f3 !important;border-color:#c9a0b0 !important;cursor:pointer;}
+        .tabbtn{background:none;border:none;cursor:pointer;transition:color .2s;}
+        .tabbtn:hover{color:#6b1e35 !important;}
+        .savebtn:hover{background:#4e1626 !important;}
+        .delx:hover{color:#c0566e !important;}
+        .selex:hover{border-color:#6b1e35 !important;background:#fdf6f8 !important;cursor:pointer;}
+        ::-webkit-scrollbar{width:4px;}
+        ::-webkit-scrollbar-track{background:#faf6f1;}
+        ::-webkit-scrollbar-thumb{background:#e8c4c4;border-radius:2px;}
+      `}</style>
+
+      {/* HEADER */}
+      <div style={{background:`linear-gradient(160deg,${C.burgundy} 0%,#8b2a44 60%,#a0364e 100%)`,padding:"44px 32px 36px",position:"relative",overflow:"hidden"}}>
+        <div style={{position:"absolute",top:-60,right:-60,width:220,height:220,borderRadius:"50%",border:"1px solid rgba(255,255,255,0.07)"}}/>
+        <div style={{maxWidth:760,margin:"0 auto",position:"relative"}}>
+          <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:4,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",marginBottom:14}}>Women's Wellness · 40+</p>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",flexWrap:"wrap",gap:24}}>
+            <div>
+              <div style={{display:"flex",alignItems:"flex-end",gap:0,marginBottom:8}}>
+                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:58,fontWeight:300,color:"rgba(255,255,255,0.55)",letterSpacing:"-1.5px",lineHeight:1}}>hi</span>
+                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:58,fontWeight:500,color:"#fff",letterSpacing:"-1.5px",lineHeight:1}}>Bloom</span>
+                <div style={{width:9,height:9,borderRadius:"50%",background:"#c0566e",marginBottom:8,marginLeft:3,flexShrink:0}}/>
+              </div>
+              <div style={{width:"100%",height:"0.5px",background:"rgba(255,255,255,0.2)",marginBottom:8}}/>
+              <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,letterSpacing:3.5,textTransform:"uppercase",color:"rgba(255,255,255,0.4)"}}>Embrace Your New Season</p>
+            </div>
+            <div style={{display:"flex"}}>
+              {[{label:"Sessions",val:logs.length},{label:"Total Sets",val:totalSets},{label:"Volume kg",val:totalVol}].map((s,i)=>(
+                <div key={s.label} style={{padding:"14px 20px",textAlign:"center",background:"rgba(255,255,255,0.1)",borderLeft:i===0?"none":"1px solid rgba(255,255,255,0.1)"}}>
+                  <div style={{fontSize:28,fontWeight:700,color:"#fff",lineHeight:1,fontFamily:"'Cormorant Garamond',serif"}}>{s.val}</div>
+                  <div style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:"rgba(255,255,255,0.45)",marginTop:4,letterSpacing:1.5,textTransform:"uppercase"}}>{s.label}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{height:1,background:`linear-gradient(90deg,${C.goldLight},transparent)`,marginTop:28,width:"50%",opacity:.5}}/>
+        </div>
+      </div>
+
+      {/* NAV */}
+      <div style={{background:C.surface,borderBottom:`1px solid ${C.border}`,position:"sticky",top:0,zIndex:90,boxShadow:"0 2px 16px rgba(107,30,53,0.05)"}}>
+        <div style={{maxWidth:760,margin:"0 auto",display:"flex",overflowX:"auto",padding:"0 24px"}}>
+          {TABS.map(([key,label])=>(
+            <button key={key} className="tabbtn" onClick={()=>setTab(key)} style={{padding:"16px 14px",fontSize:10,fontFamily:"'DM Sans',sans-serif",fontWeight:700,letterSpacing:2,textTransform:"uppercase",whiteSpace:"nowrap",color:tab===key?C.burgundy:C.muted,borderBottom:tab===key?`2px solid ${C.burgundy}`:"2px solid transparent"}}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      {/* CONTENT */}
+      <div style={{maxWidth:760,margin:"0 auto",padding:"36px 32px 100px"}}>
+
+        {tab==="today"&&pulse&&<TodayCard answers={pulse} onRetake={()=>setShowP(true)} name={name} onEditName={editName}/>}
+        {tab==="today"&&!pulse&&<div style={{textAlign:"center",paddingTop:60}}><p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",fontSize:22,color:C.muted,marginBottom:16}}>Complete your Morning Pulse to see today's card.</p><button onClick={()=>setShowP(true)} style={{background:C.burgundy,color:"#fff",border:"none",borderRadius:2,padding:"13px 28px",fontFamily:"'DM Sans',sans-serif",fontSize:11,letterSpacing:2,textTransform:"uppercase",cursor:"pointer"}}>Begin</button></div>}
+
+        {tab==="cycle"&&<CycleTab pulseAnswers={pulse}/>}
+        {tab==="plan"&&<PlanTab pulseAnswers={pulse}/>}
+        {tab==="hormones"&&<HormonesTab/>}
+        {tab==="nutrition"&&<NutritionTab/>}
+        {tab==="supplements"&&<SupplementsTab/>}
+        {tab==="calm"&&<CalmTab/>}
+
+        {tab==="history"&&(
+          <div>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:26,fontWeight:500,color:C.burgundy,marginBottom:4}}>Progress</p>
+            <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.muted,marginBottom:28,lineHeight:1.8}}>Every session is evidence. This is what consistency looks like.</p>
+            {logs.length===0?(
+              <div style={{textAlign:"center",padding:"80px 0"}}>
+                <div style={{fontSize:28,marginBottom:16,opacity:.2}}>◇</div>
+                <p style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",fontSize:24,color:C.muted}}>No sessions yet.</p>
+                <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:12,color:C.border,marginTop:8}}>Open a day in your Plan to log your first session.</p>
+              </div>
+            ):(()=>{
+              const counts={};
+              logs.forEach(l=>{counts[l.exercise]=(counts[l.exercise]||0)+1;});
+              const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+              const thisWeek=logs.filter(l=>new Date(l.date)>=weekAgo).length;
+              const uniqueEx=[...new Set(logs.map(l=>l.exercise))].length;
+              const bestVol={};
+              logs.forEach(l=>{const v=Number(l.sets||0)*Number(l.reps||0)*Number(l.weight||0);if(!bestVol[l.exercise]||v>bestVol[l.exercise])bestVol[l.exercise]=v;});
+              const palette=[C.burgundy,"#9b2d50",C.rose,C.gold,C.goldLight,C.sage,"#5a7a5e",C.blushDim,"#8a6f42","#6b4c5e"];
+              const exEntries=Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+              const total=exEntries.reduce((s,[,v])=>s+v,0);
+              let cum=0;
+              const slices=exEntries.map(([ex,count],i)=>{
+                const pct=count/total;
+                const sA=(cum*2*Math.PI)-(Math.PI/2)+0.025;
+                cum+=pct;
+                const eA=(cum*2*Math.PI)-(Math.PI/2)-0.025;
+                const cx=100,cy=100,R=78,r=44;
+                const x1=cx+R*Math.cos(sA),y1=cy+R*Math.sin(sA),x2=cx+R*Math.cos(eA),y2=cy+R*Math.sin(eA);
+                const x3=cx+r*Math.cos(eA),y3=cy+r*Math.sin(eA),x4=cx+r*Math.cos(sA),y4=cy+r*Math.sin(sA);
+                const large=pct>0.5?1:0;
+                return{ex,count,pct,d:`M${x1},${y1} A${R},${R} 0 ${large},1 ${x2},${y2} L${x3},${y3} A${r},${r} 0 ${large},0 ${x4},${y4} Z`,color:palette[i%palette.length]};
+              });
+              return(
+                <div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:4,marginBottom:4}}>
+                    {[{val:logs.length,label:"Sessions"},{val:totalSets,label:"Total Sets"},{val:Math.round(totalVol/1000)+"k",label:"Volume kg"}].map(s=>(
+                      <div key={s.label} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,padding:"18px 14px",textAlign:"center"}}>
+                        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:32,fontWeight:700,color:C.burgundy,lineHeight:1}}>{s.val}</p>
+                        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:C.muted,marginTop:4,letterSpacing:1.5,textTransform:"uppercase"}}>{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:4,marginBottom:24}}>
+                    {[{val:thisWeek,label:"This Week"},{val:uniqueEx,label:"Exercises"},{val:exEntries[0]?exEntries[0][0].split(" ")[0]:"—",label:"Top Exercise"}].map(s=>(
+                      <div key={s.label} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,padding:"14px",textAlign:"center"}}>
+                        <p style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:700,color:C.gold,lineHeight:1}}>{s.val}</p>
+                        <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,color:C.muted,marginTop:4,letterSpacing:1.5,textTransform:"uppercase"}}>{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {slices.length>1&&(
+                    <div style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,padding:"22px 20px",marginBottom:24}}>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:C.muted,marginBottom:18}}>Training Distribution</p>
+                      <div style={{display:"flex",alignItems:"center",gap:20,flexWrap:"wrap"}}>
+                        <div style={{flexShrink:0}}>
+                          <svg width="200" height="200" viewBox="0 0 200 200">
+                            {slices.map((s,i)=>(<path key={i} d={s.d} fill={s.color} opacity=".9"/>))}
+                            <text x="100" y="96" textAnchor="middle" fontSize="10" fill={C.muted} fontFamily="'DM Sans',sans-serif" letterSpacing="1">SESSIONS</text>
+                            <text x="100" y="114" textAnchor="middle" fontSize="24" fill={C.burgundy} fontFamily="'Cormorant Garamond',serif" fontWeight="700">{total}</text>
+                          </svg>
+                        </div>
+                        <div style={{flex:1,minWidth:140}}>
+                          {slices.map((s,i)=>(
+                            <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                              <div style={{width:10,height:10,borderRadius:"50%",background:s.color,flexShrink:0}}/>
+                              <div style={{flex:1}}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+                                  <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:14,fontWeight:700,color:C.ink}}>{s.ex}</span>
+                                  <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:C.muted,marginLeft:6}}>{Math.round(s.pct*100)}%</span>
+                                </div>
+                                <div style={{height:2,background:C.blushLight,borderRadius:1,marginTop:3,overflow:"hidden"}}><div style={{height:"100%",width:`${s.pct*100}%`,background:s.color,borderRadius:1}}/></div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {Object.keys(bestVol).length>0&&(
+                    <div style={{marginBottom:24}}>
+                      <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:C.muted,marginBottom:12}}>Best Session Volume</p>
+                      {Object.entries(bestVol).sort((a,b)=>b[1]-a[1]).map(([ex,vol])=>{
+                        const max=Math.max(...Object.values(bestVol));
+                        return(
+                          <div key={ex} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,padding:"12px 16px",marginBottom:4}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+                              <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:16,fontWeight:700,color:C.ink}}>{ex}</span>
+                              <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:15,fontWeight:700,color:C.burgundy}}>{vol.toLocaleString()} kg</span>
+                            </div>
+                            <div style={{height:3,background:C.blushLight,borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",width:`${(vol/max)*100}%`,background:`linear-gradient(90deg,${C.burgundy},${C.rose})`,borderRadius:2}}/></div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+                    <p style={{fontFamily:"'DM Sans',sans-serif",fontSize:9,letterSpacing:2.5,textTransform:"uppercase",color:C.muted}}>All Sessions</p>
+                    {confirmClear
+                      ?<div style={{display:"flex",gap:8}}><button onClick={()=>{setLogs([]);setCC(false);}} style={{background:C.rose,color:"#fff",border:"none",borderRadius:2,padding:"7px 14px",fontFamily:"'DM Sans',sans-serif",fontSize:10,cursor:"pointer"}}>Confirm Delete</button><button onClick={()=>setCC(false)} style={{background:"none",border:`1px solid ${C.border}`,color:C.muted,borderRadius:2,padding:"7px 12px",fontFamily:"'DM Sans',sans-serif",fontSize:10,cursor:"pointer"}}>Cancel</button></div>
+                      :<button onClick={()=>setCC(true)} style={{background:"none",border:"none",color:C.mutedLight,fontSize:11,fontFamily:"'DM Sans',sans-serif",cursor:"pointer"}}>Clear all</button>
+                    }
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {logs.map(log=>(
+                      <div key={log.id} style={{background:C.surface,border:`1px solid ${C.border}`,borderRadius:4,padding:"16px 18px",display:"grid",gridTemplateColumns:"1fr auto"}}>
+                        <div>
+                          <div style={{display:"flex",alignItems:"baseline",gap:12,marginBottom:8,flexWrap:"wrap"}}>
+                            <span style={{fontFamily:"'Cormorant Garamond',serif",fontStyle:"italic",fontSize:19,fontWeight:700,color:C.burgundy}}>{log.exercise}</span>
+                            <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:11,color:C.mutedLight}}>{log.date}</span>
+                          </div>
+                          <div style={{display:"flex",gap:14,marginBottom:log.notes?8:0,flexWrap:"wrap"}}>
+                            {[[log.sets,"sets"],[log.reps,"reps"],[`${log.weight||0}`,"kg"]].map(([v,u])=>(
+                              <div key={u} style={{display:"flex",alignItems:"baseline",gap:3}}>
+                                <span style={{fontFamily:"'Cormorant Garamond',serif",fontSize:22,fontWeight:700,color:C.ink}}>{v}</span>
+                                <span style={{fontFamily:"'DM Sans',sans-serif",fontSize:10,color:C.muted}}>{u}</span>
+                              </div>
+                            ))}
+                          </div>
+                          {log.notes&&<p style={{fontFamily:"Georgia,serif",fontStyle:"italic",fontSize:12,color:C.muted,lineHeight:1.6}}>{log.notes}</p>}
+                        </div>
+                        <button className="delx" onClick={()=>setLogs(prev=>prev.filter(l=>l.id!==log.id))} style={{background:"none",border:"none",color:C.border,fontSize:13,cursor:"pointer",alignSelf:"flex-start",marginLeft:14,transition:"color .15s"}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+      </div>
+      {toast&&<Toast msg={toast} onDone={()=>setToast(null)}/>}
+    </div>
+  );
+}
